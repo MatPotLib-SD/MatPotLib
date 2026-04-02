@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { Sprout, Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { colors, spacing, fontSizes } from '../constants/theme';
 
-export default function SignInScreen() {
+export default function SignInScreen({navigation}: any) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -85,12 +85,7 @@ export default function SignInScreen() {
             <Text style={styles.googleButtonText}>Continue with Google</Text>
           </TouchableOpacity>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity>
-              <Text style={styles.footerLink}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Sprout, User, Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
-import { colors, spacing, fontSizes } from '../constants/theme';
+import {Sprout, User, Mail, Lock, Eye, EyeOff, Navigation} from 'lucide-react-native';
+import {colors, spacing, fontSizes} from '../constants/theme';
 
-export default function SignUpScreen() {
+export default function SignUpScreen({navigation}: any) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -109,9 +109,19 @@ export default function SignUpScreen() {
             <Text style={styles.buttonText}>Create Account</Text>
           </TouchableOpacity>
 
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity style={styles.googleButton} activeOpacity={0.8}>
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </TouchableOpacity>
+
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
               <Text style={styles.footerLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
@@ -192,6 +202,35 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: fontSizes.md,
     fontWeight: '600',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.divider,
+  },
+  dividerText: {
+    marginHorizontal: spacing.md,
+    fontSize: fontSizes.sm,
+    color: colors.textSecondary,
+  },
+  googleButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  googleButtonText: {
+    fontSize: fontSizes.md,
+    fontWeight: '600',
+    color: colors.text,
   },
   footer: {
     flexDirection: 'row',
