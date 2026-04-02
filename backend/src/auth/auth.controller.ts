@@ -3,7 +3,7 @@ import { AuthGuard } from './auth.guard';
 import type { AuthenticatedUser } from './auth.guard';
 import { CurrentUser } from './current-user.decorator';
 
-@Controller()
+@Controller('auth')
 export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard)
