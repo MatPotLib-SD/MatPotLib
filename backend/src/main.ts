@@ -7,9 +7,17 @@ async function bootstrap() {
   // Global API prefix
   app.setGlobalPrefix('api/v1');
 
-  // Enable CORS for Expo development
+  // Configure CORS: restrictive in production, permissive in development
+  const isProduction = process.env.NODE_ENV === 'production';
+  const corsOriginsEnv = process.env.CORS_ORIGINS;
+  const corsOrigin = isProduction
+    ? (corsOriginsEnv
+        ? corsOriginsEnv.split(',').map((origin) => origin.trim()).filter(Boolean)
+        : [])
+    : true;
+
   app.enableCors({
-    origin: true,
+    origin: corsOrigin,
   });
 
   const port = process.env.PORT ?? 3000;
