@@ -105,7 +105,14 @@ export default function SignUpScreen({navigation}: any) {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.button} activeOpacity={0.8}>
+          {/*<TouchableOpacity style={styles.button} activeOpacity={0.8}>
+            <Text style={styles.buttonText}>Create Account</Text>
+          </TouchableOpacity>*/}
+          <TouchableOpacity 
+            style={styles.button} 
+            activeOpacity={0.8} 
+            onPress={() => navigation.navigate('QuizExperience')}
+          >
             <Text style={styles.buttonText}>Create Account</Text>
           </TouchableOpacity>
 
