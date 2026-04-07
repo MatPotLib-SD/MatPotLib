@@ -10,10 +10,10 @@ import { Sprout, Leaf, TreeDeciduous, Award, CheckCircle } from 'lucide-react-na
 import { colors, spacing, fontSizes } from '../constants/theme';
 
 const options = [
-  { id: 'beginner', Icon: Sprout, label: "Total beginner — I've never kept a plant alive" },
-  { id: 'some', Icon: Leaf, label: 'Some experience — I have a few plants' },
-  { id: 'green', Icon: TreeDeciduous, label: 'Green thumb — I manage a home garden' },
-  { id: 'expert', Icon: Award, label: 'Expert — I could run a nursery' },
+  { id: 'beginner', Icon: Sprout, label: "Total beginner: I've never kept a plant alive" },
+  { id: 'some', Icon: Leaf, label: 'Some experience: I have a few plants' },
+  { id: 'green', Icon: TreeDeciduous, label: 'Green thumb: I manage a home garden' },
+  { id: 'expert', Icon: Award, label: 'Expert: I could run a nursery' },
 ];
 
 export default function QuizExperienceScreen({ navigation }: any) {
