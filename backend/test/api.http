@@ -1,0 +1,151 @@
+# MatPotLib backend — manual API tests (VS Code REST Client / IntelliJ HTTP).
+# Fill in the variables below, then send requests individually.
+
+@baseUrl = http://localhost:3000
+# Supabase access token (JWT) of a signed-in user
+@jwt = REPLACE_WITH_SUPABASE_JWT
+# Device provisioning values (see DEPLOYMENT.md device provisioning step)
+@deviceId = REPLACE_WITH_DEVICE_UUID
+@deviceToken = REPLACE_WITH_DEVICE_SECRET
+@claimCode = REPLACE_WITH_CLAIM_CODE
+# Filled after creating a plant / picking a species
+@plantId = REPLACE_WITH_PLANT_UUID
+@speciesId = REPLACE_WITH_SPECIES_UUID
+
+### Health check (no auth)
+GET {{baseUrl}}/health
+
+### ---------------- Profiles ----------------
+
+### Get my profile (bootstraps an empty row on first call)
+GET {{baseUrl}}/profiles/me
+Authorization: Bearer {{jwt}}
+
+### Update my profile (onboarding quiz answers)
+PUT {{baseUrl}}/profiles/me
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "display_name": "Justin",
+  "experience_level": "beginner",
+  "goals": ["keep plants alive", "learn"],
+  "plant_types": ["ferns", "succulents"]
+}
+
+### ---------------- Push ----------------
+
+### Register Expo push token
+POST {{baseUrl}}/push/register
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "expo_token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]",
+  "platform": "ios"
+}
+
+### ---------------- Devices ----------------
+
+### Claim a device by claim code (409 if invalid/claimed/already own one)
+POST {{baseUrl}}/devices/claim
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "claim_code": "{{claimCode}}"
+}
+
+### List my devices
+GET {{baseUrl}}/devices
+Authorization: Bearer {{jwt}}
+
+### Unlink (unclaim) a device I own
+DELETE {{baseUrl}}/devices/{{deviceId}}
+Authorization: Bearer {{jwt}}
+
+### ---------------- Species ----------------
+
+### Search species (ilike on common/scientific name + aliases;
+### falls back to LLM enrichment when nothing matches and OPENAI_API_KEY is set)
+GET {{baseUrl}}/species?q=fern
+Authorization: Bearer {{jwt}}
+
+### ---------------- Plants ----------------
+
+### List my plants (each with species + latest reading)
+GET {{baseUrl}}/plants
+Authorization: Bearer {{jwt}}
+
+### Add a plant
+POST {{baseUrl}}/plants
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "nickname": "Ferny",
+  "device_id": "{{deviceId}}",
+  "plant_species_id": "{{speciesId}}",
+  "notes": "Lives on the kitchen windowsill"
+}
+
+### Plant detail
+GET {{baseUrl}}/plants/{{plantId}}
+Authorization: Bearer {{jwt}}
+
+### Edit a plant
+PUT {{baseUrl}}/plants/{{plantId}}
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "nickname": "Fern II",
+  "notes": "Moved to the living room"
+}
+
+### Remove a plant
+DELETE {{baseUrl}}/plants/{{plantId}}
+Authorization: Bearer {{jwt}}
+
+### ---------------- Sensors ----------------
+
+### Device ingest (device token auth, not JWT — this is what the ESP32 sends)
+POST {{baseUrl}}/sensors/readings
+Content-Type: application/json
+x-device-token: {{deviceToken}}
+
+{
+  "device_id": "{{deviceId}}",
+  "moisture": 42.5,
+  "temp_c": 21.3,
+  "humidity": 55,
+  "lux": 1200,
+  "battery_pct": 88
+}
+
+### Ingest an out-of-range reading (should create an alert + push)
+POST {{baseUrl}}/sensors/readings
+Content-Type: application/json
+x-device-token: {{deviceToken}}
+
+{
+  "device_id": "{{deviceId}}",
+  "moisture": 2,
+  "temp_c": 21.3,
+  "humidity": 55,
+  "lux": 1200
+}
+
+### Latest reading for my device
+GET {{baseUrl}}/sensors/{{deviceId}}
+Authorization: Bearer {{jwt}}
+
+### Reading history for a chart window
+GET {{baseUrl}}/sensors/{{deviceId}}/history?from=2026-07-01T00:00:00Z&to=2026-07-04T23:59:59Z
+Authorization: Bearer {{jwt}}
+
+### ---------------- Alerts ----------------
+
+### Alert history (newest first)
+GET {{baseUrl}}/alerts
+Authorization: Bearer {{jwt}}

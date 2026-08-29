@@ -1,0 +1,20 @@
+# One-command dev boot for the backend.
+#
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# The database/auth target is Supabase, which is an external managed service:
+# point backend/.env at either your cloud Supabase project, or a local stack
+# started with `npx supabase start` inside db/ (the CLI prints local URL + keys).
+# Then:
+#   cd scripts && npm run seed:demo && npm run sim
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - PORT=3000
+    restart: unless-stopped

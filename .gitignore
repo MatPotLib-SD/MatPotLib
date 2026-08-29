@@ -1,0 +1,35 @@
+# Node
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+npm-debug.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+firmware/include/secrets.h
+
+# Expo / React Native
+.expo/
+.expo-shared/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# PlatformIO
+firmware/.pio/
+firmware/.vscode/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Supabase local
+db/supabase/.temp/
+db/supabase/.branches/

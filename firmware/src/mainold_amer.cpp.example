@@ -1,0 +1,323 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+#include <BH1750.h>
+#include <WiFi.h>
+#include <WiFiManager.h>       // Library Manager: "WiFiManager" by tzapu
+#include <ESPmDNS.h>
+#include <WebServer.h>
+#include <ArduinoJson.h>       // Library Manager: "ArduinoJson" by Benoit Blanchon
+#include <Preferences.h>       // Built-in ESP32 — no install needed
+#include <HTTPClient.h>   // Built into ESP32 board package
+
+// Put your real API URL and a secret key here
+const char* API_URL = "https://your-api.com/api/readings";
+const char* API_KEY = "your-secret-key-here";
+
+// Latest readings (populated by takeSample())
+struct Readings {
+  float  tempC;
+  float  humidity;
+  float  pressure;
+  float  lux;
+  int    soilRaw;
+  bool   valid = false;
+} latest;
+
+void postReading() {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  HTTPClient http;
+  http.begin(API_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-api-key", API_KEY);  // Simple auth header
+
+  // Build JSON from latest readings
+  String body = "{";
+  body += "\"tempC\":"        + String(latest.tempC,    2) + ",";
+  body += "\"humidity\":"     + String(latest.humidity, 2) + ",";
+  body += "\"pressure_hPa\":" + String(latest.pressure, 2) + ",";
+  body += "\"lux\":"          + String(latest.lux,      2) + ",";
+  body += "\"soil_raw\":"     + String(latest.soilRaw);
+  body += "}";
+
+  int httpCode = http.POST(body);
+
+  if (httpCode == 200 || httpCode == 201) {
+    Serial.println("Reading posted OK");
+  } else {
+    Serial.printf("POST failed: %d\n", httpCode);
+  }
+
+  http.end();
+}
+
+// WiFi Constants
+const char* SSID = "NetworkName";
+const char* PASSWORD = "Password";
+
+// Pins on Arduino Nano ESP32
+static const int PIN_SDA  = 11;  // D11
+static const int PIN_SCL  = 12;  // D12
+static const int PIN_SOIL = A0;  // Analog input for moisture sensor
+#define PIN_RESET_BTN    2    // Wire button between D2 and GND
+#define PIN_STATUS_LED   13   // Built-in LED — blinks during portal, solid when connected
+
+// Sampling config
+static const int   NUM_SAMPLES    = 11;   // Must be odd for clean median
+static const int   TRIM_COUNT     =  2;   // Remove this many from each end (high + low)
+static const unsigned long SAMPLE_INTERVAL_MS = 200; // ms between samples
+
+// ── WiFi / server config ──────────────────────────────────────────────────────
+#define PORTAL_SSID      "PlantMonitor-Setup"
+#define MDNS_NAME        "plantmonitor"       // reachable at plantmonitor.local
+#define RESET_HOLD_MS    3000                 // hold button 3s to reset WiFi
+#define PORTAL_TIMEOUT   180                  // seconds before portal gives up
+
+// Globals
+Adafruit_BME280 bme;
+BH1750          lightMeter;
+uint8_t         bmeAddress = 0x76;
+WebServer       server(80);
+WiFiManager     wifiManager;
+Preferences     prefs;
+bool     portalActive = false;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+void sortFloats(float* a, int n) {
+  for (int i = 1; i < n; i++) {
+    float k = a[i]; int j = i - 1;
+    while (j >= 0 && a[j] > k) { a[j+1] = a[j]; j--; }
+    a[j+1] = k;
+  }
+}
+void sortInts(int* a, int n) {
+  for (int i = 1; i < n; i++) {
+    int k = a[i]; int j = i - 1;
+    while (j >= 0 && a[j] > k) { a[j+1] = a[j]; j--; }
+    a[j+1] = k;
+  }
+}
+float medianFloat(float* a, int n) {
+  sortFloats(a, n);
+  int inner = n - 2 * TRIM_COUNT;
+  return a[TRIM_COUNT + inner / 2];
+}
+float medianInt(int* a, int n) {
+  sortInts(a, n);
+  int inner = n - 2 * TRIM_COUNT;
+  return (float)a[TRIM_COUNT + inner / 2];
+}
+
+// ── Sensor init ───────────────────────────────────────────────────────────────
+
+bool initBME280() {
+  if (bme.begin(0x76)) { bmeAddress = 0x76; return true; }
+  if (bme.begin(0x77)) { bmeAddress = 0x77; return true; }
+  return false;
+}
+
+// ── Sample all sensors → trimmed median ──────────────────────────────────────
+void takeSample() {
+  float tempS[NUM_SAMPLES], humS[NUM_SAMPLES];
+  float presS[NUM_SAMPLES], luxS[NUM_SAMPLES];
+  int   soilS[NUM_SAMPLES];
+
+  for (int i = 0; i < NUM_SAMPLES; i++) {
+    tempS[i] = bme.readTemperature();
+    humS[i]  = bme.readHumidity();
+    presS[i] = bme.readPressure() / 100.0F;
+    luxS[i]  = lightMeter.readLightLevel();
+    soilS[i] = analogRead(PIN_SOIL);
+    delay(SAMPLE_INTERVAL_MS);
+  }
+
+  latest.tempC    = medianFloat(tempS, NUM_SAMPLES);
+  latest.humidity = medianFloat(humS,  NUM_SAMPLES);
+  latest.pressure = medianFloat(presS, NUM_SAMPLES);
+  latest.lux      = medianFloat(luxS,  NUM_SAMPLES);
+  latest.soilRaw  = (int)medianInt(soilS, NUM_SAMPLES);
+  latest.valid    = true;
+}
+
+// ── HTTP handlers ─────────────────────────────────────────────────────────────
+
+// GET /data  →  sensor JSON
+void handleData() {
+  if (!latest.valid) {
+    server.send(503, "application/json", "{\"error\":\"No readings yet\"}");
+    return;
+  }
+  StaticJsonDocument<256> doc;
+  doc["tempC"]        = serialized(String(latest.tempC,    2));
+  doc["humidity"]     = serialized(String(latest.humidity, 2));
+  doc["pressure_hPa"] = serialized(String(latest.pressure, 2));
+  doc["lux"]          = serialized(String(latest.lux,      2));
+  doc["soil_raw"]     = latest.soilRaw;
+  doc["ip"]           = WiFi.localIP().toString();
+  doc["rssi"]         = WiFi.RSSI();
+
+  String json;
+  serializeJson(doc, json);
+  server.send(200, "application/json", json);
+}
+
+// GET /status  →  device + WiFi info
+void handleStatus() {
+  StaticJsonDocument<128> doc;
+  doc["ssid"]    = WiFi.SSID();
+  doc["ip"]      = WiFi.localIP().toString();
+  doc["rssi"]    = WiFi.RSSI();
+  doc["uptime"]  = millis() / 1000;
+
+  String json;
+  serializeJson(doc, json);
+  server.send(200, "application/json", json);
+}
+
+// POST /reset-wifi  →  wipe credentials, reboot into portal
+void handleResetWiFi() {
+  server.send(200, "application/json",
+    "{\"message\":\"Resetting WiFi. Reconnect to " PORTAL_SSID "\"}");
+  delay(500);
+  wifiManager.resetSettings();
+  ESP.restart();
+}
+
+// 404 catch-all
+void handleNotFound() {
+  server.send(404, "application/json", "{\"error\":\"Not found\"}");
+}
+
+// ── WiFiManager portal callbacks ──────────────────────────────────────────────
+void onPortalStart(WiFiManager* wm) {
+  portalActive = true;
+  Serial.println(">>> Config portal open — connect to: " PORTAL_SSID);
+}
+void onPortalEnd() {
+  portalActive = false;
+  Serial.println(">>> Config portal closed");
+}
+
+// ── Status LED ────────────────────────────────────────────────────────────────
+void updateLED() {
+  if (portalActive) {
+    // Fast blink during setup portal
+    digitalWrite(PIN_STATUS_LED, (millis() / 300) % 2);
+  } else if (WiFi.status() == WL_CONNECTED) {
+    digitalWrite(PIN_STATUS_LED, HIGH);  // Solid = connected
+  } else {
+    // Slow blink = trying to reconnect
+    digitalWrite(PIN_STATUS_LED, (millis() / 1000) % 2);
+  }
+}
+
+// ── Reset button (hold RESET_HOLD_MS to wipe WiFi) ───────────────────────────
+void checkResetButton() {
+  if (digitalRead(PIN_RESET_BTN) == LOW) {
+    unsigned long t = millis();
+    Serial.println("Button held...");
+    while (digitalRead(PIN_RESET_BTN) == LOW) {
+      updateLED();
+      if (millis() - t >= RESET_HOLD_MS) {
+        Serial.println("Wiping WiFi credentials and rebooting...");
+        wifiManager.resetSettings();
+        ESP.restart();
+      }
+    }
+  }
+}
+
+// ── Auto-reconnect if WiFi drops ──────────────────────────────────────────────
+void checkWiFiConnection() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi lost — attempting reconnect...");
+    WiFi.reconnect();
+    unsigned long t = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - t < 10000) {
+      delay(500); Serial.print(".");
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("\nReconnected! IP: " + WiFi.localIP().toString());
+    } else {
+      Serial.println("\nReconnect failed. Will retry next loop.");
+    }
+  }
+}
+
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  pinMode(PIN_STATUS_LED, OUTPUT);
+  pinMode(PIN_RESET_BTN,  INPUT_PULLUP);
+
+  // I2C + sensors
+  Wire.begin(PIN_SDA, PIN_SCL);
+  bool bmeOk = initBME280();
+  bool bhOk  = lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
+
+  Serial.println("---- Sensor Status ----");
+  Serial.print("BME280: "); Serial.println(bmeOk ? "OK" : "NOT FOUND");
+  Serial.print("BH1750: "); Serial.println(bhOk  ? "OK" : "NOT FOUND");
+  Serial.println("Soil  : OK");
+  Serial.println("-----------------------");
+
+  // WiFiManager setup
+  wifiManager.setAPCallback(onPortalStart);
+  wifiManager.setSaveConfigCallback(onPortalEnd);
+  wifiManager.setConfigPortalTimeout(PORTAL_TIMEOUT);
+
+  // Tries saved credentials first.
+  // If none, or they fail → opens PORTAL_SSID hotspot.
+  if (!wifiManager.autoConnect(PORTAL_SSID)) {
+    Serial.println("Portal timed out — rebooting.");
+    ESP.restart();
+  }
+
+  Serial.println("WiFi connected!");
+  Serial.print("IP: "); Serial.println(WiFi.localIP());
+
+  // mDNS — device reachable at plantmonitor.local
+  if (MDNS.begin(MDNS_NAME)) {
+    Serial.println("mDNS: " MDNS_NAME ".local");
+    MDNS.addService("http", "tcp", 80);
+  }
+
+  // HTTP endpoints
+  server.on("/data",       HTTP_GET,  handleData);
+  server.on("/status",     HTTP_GET,  handleStatus);
+  server.on("/reset-wifi", HTTP_POST, handleResetWiFi);
+  server.onNotFound(handleNotFound);
+  server.begin();
+  Serial.println("HTTP server started");
+
+  // Take first reading right away
+  takeSample();
+}
+
+
+// ── Loop ──────────────────────────────────────────────────────────────────────
+
+// ── Loop ──────────────────────────────────────────────────────────────────────
+unsigned long lastSample = 0;
+const unsigned long SAMPLE_EVERY = 30000; // 30 seconds between batches
+
+void loop() {
+  server.handleClient();      // Serve HTTP requests
+  checkResetButton();         // Watch for 3-second hold
+  checkWiFiConnection();      // Auto-reconnect if dropped
+  updateLED();                // Status LED feedback
+
+  // Refresh sensor readings every 30 seconds
+  if (millis() - lastSample >= SAMPLE_EVERY) {
+    lastSample = millis();
+    takeSample();
+    postReading();
+    Serial.printf("[Sample] %.1f°C  %.1f%%  %.1flux  soil:%d\n",
+      latest.tempC, latest.humidity, latest.lux, latest.soilRaw);
+  }
+}

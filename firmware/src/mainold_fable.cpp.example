@@ -1,0 +1,79 @@
+// MatPotLib firmware — Arduino Nano ESP32
+// Reads soil moisture (A0), BME280 (I2C temp/humidity), BH1750 (I2C lux)
+// and POSTs a reading to the backend every 15 minutes over HTTPS.
+//
+// Wiring (PDD Fig 4): moisture AOUT -> A0; BME280 + BH1750 share I2C
+// (D11 SDA, D12 SCL); sensors on 3.3V/GND rails.
+
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <Wire.h>
+#include <Adafruit_BME280.h>
+#include <BH1750.h>
+#include "secrets.h"
+
+Adafruit_BME280 bme;
+BH1750 lightMeter;
+
+const int MOISTURE_PIN = A0;
+const int DRY_RAW = 3200;   // TODO calibrate: raw ADC reading with probe in dry air
+const int WET_RAW = 1400;   // TODO calibrate: raw ADC reading with probe in water
+const uint8_t BME_ADDR = 0x76;  // TODO verify with i2c_scan (0x76 or 0x77)
+const unsigned long INTERVAL_MS = 15UL * 60UL * 1000UL;
+
+void connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 20000) delay(500);
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("WiFi connected, IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("WiFi connect timed out");
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+  if (!bme.begin(BME_ADDR)) Serial.println("BME280 not found; check address (run i2c_scan)");
+  lightMeter.begin();
+  connectWiFi();
+}
+
+void postReading() {
+  if (WiFi.status() != WL_CONNECTED) connectWiFi();
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  float temp = bme.readTemperature();
+  float hum  = bme.readHumidity();
+  float lux  = lightMeter.readLightLevel();
+  int raw    = analogRead(MOISTURE_PIN);
+  float moisture = (float)(raw - DRY_RAW) * 100.0f / (float)(WET_RAW - DRY_RAW);
+  if (moisture < 0) moisture = 0;
+  if (moisture > 100) moisture = 100;
+
+  String body = String("{") +
+    "\"device_id\":\"" + DEVICE_ID + "\"," +
+    "\"moisture\":" + String(moisture, 1) + "," +
+    "\"temp_c\":"   + String(temp, 1) + "," +
+    "\"humidity\":" + String(hum, 1) + "," +
+    "\"lux\":"      + String(lux, 1) + "}";
+
+  WiFiClientSecure client;
+  client.setInsecure();  // MVP only; no cert validation. See DEPLOYMENT.md TODO.
+  HTTPClient http;
+  http.begin(client, String(API_URL) + "/sensors/readings");
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-device-token", DEVICE_TOKEN);
+  int code = http.POST(body);
+  Serial.printf("POST %d\n", code);
+  http.end();
+}
+
+void loop() {
+  postReading();
+  delay(INTERVAL_MS);
+}

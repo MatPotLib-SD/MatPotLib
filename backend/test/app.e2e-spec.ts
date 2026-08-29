@@ -19,9 +19,7 @@ describe('AppController (e2e)', () => {
   afterEach(async () => {
     await app.close();
   });
-  it('/api/v1/health (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/api/v1/health')
-      .expect(200);
+  it('/health (GET)', () => {
+    return request(app.getHttpServer()).get('/health').expect(200);
   });
 });

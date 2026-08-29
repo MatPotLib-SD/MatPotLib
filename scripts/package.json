@@ -1,0 +1,20 @@
+{
+  "name": "matpotlib-scripts",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Test-harness scripts: device simulator, demo seed, alert trigger",
+  "scripts": {
+    "sim": "tsx sim_device.ts",
+    "seed:demo": "tsx seed_demo.ts",
+    "trigger:alert": "tsx trigger_alert.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.3"
+  }
+}

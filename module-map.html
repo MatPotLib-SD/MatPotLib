@@ -1,0 +1,572 @@
+<title>MatPotLib Module Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:#F5F7F3;
+    --surface:#FFFFFF;
+    --sunk:#EBEEE7;
+    --ink:#151B17;
+    --muted:#5C6961;
+    --faint:#8A968D;
+    --line:#DBE0D6;
+    --line-soft:#E7EBE3;
+    --accent:#2E7D52;
+    --accent-soft:#E3EFE8;
+    --signal:#3E5FC0;
+    --signal-soft:#E4E9F8;
+
+    --display:"Bricolage Grotesque","Trebuchet MS",sans-serif;
+    --body:"Source Serif 4",Georgia,serif;
+    --mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0E1311;
+      --surface:#161D19;
+      --sunk:#1C2521;
+      --ink:#E7EDE8;
+      --muted:#9AA79E;
+      --faint:#6D7B72;
+      --line:#2A332E;
+      --line-soft:#212A25;
+      --accent:#5FBE86;
+      --accent-soft:#1B2E23;
+      --signal:#8098EE;
+      --signal-soft:#1B2340;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0E1311;
+    --surface:#161D19;
+    --sunk:#1C2521;
+    --ink:#E7EDE8;
+    --muted:#9AA79E;
+    --faint:#6D7B72;
+    --line:#2A332E;
+    --line-soft:#212A25;
+    --accent:#5FBE86;
+    --accent-soft:#1B2E23;
+    --signal:#8098EE;
+    --signal-soft:#1B2340;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 56px 28px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 68px;
+  }
+  .prose { max-width: 66ch; }
+
+  header { display:flex; flex-direction:column; gap:20px; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(38px, 6vw, 62px);
+    line-height: 1.02;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .lede { font-size: 19px; color: var(--muted); max-width: 62ch; margin: 0; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .stat { background: var(--surface); padding: 16px 18px; display:flex; flex-direction:column; gap:2px; }
+  .stat b {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 27px;
+    letter-spacing: -.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat span {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  section { display:flex; flex-direction:column; gap:22px; }
+  h2 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 27px;
+    letter-spacing: -.01em;
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  h2::before {
+    content: "";
+    width: 22px;
+    height: 2px;
+    background: var(--accent);
+    flex: none;
+    transform: translateY(-6px);
+  }
+  p { margin: 0; }
+
+  figure { margin: 0; display:flex; flex-direction:column; gap:14px; }
+  .frame {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 18px;
+    overflow-x: auto;
+  }
+  .dg { display:block; width:100%; min-width: 780px; height:auto; }
+  figcaption { font-size: 15.5px; color: var(--muted); max-width: 74ch; }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  .legend { display:flex; flex-wrap:wrap; gap: 8px 22px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .legend i { display:inline-flex; align-items:center; gap:8px; font-style:normal; }
+  .swatch { width: 22px; height: 0; border-top: 2px solid; flex:none; }
+  .sw-user { color: var(--accent); }
+  .sw-dev { color: var(--signal); }
+  .sw-int { color: var(--faint); }
+
+  .node { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+  .node-sunk { fill: var(--sunk); stroke: var(--line); stroke-width: 1; }
+  .node-dash { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+  .nt { font-family: var(--mono); font-size: 12.5px; font-weight: 500; fill: var(--ink); }
+  .nd { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); }
+  .nd-dev { font-family: var(--mono); font-size: 10.5px; fill: var(--signal); }
+  .rule { stroke: var(--line-soft); stroke-width: 1; }
+  .stripe-a { fill: var(--accent); }
+  .stripe-d { fill: var(--signal); }
+  .stripe-n { fill: var(--faint); }
+
+  .e { fill: none; stroke-width: 1.4; }
+  .e-user { stroke: var(--accent); }
+  .e-dev { stroke: var(--signal); }
+  .e-int { stroke: var(--faint); }
+  .e-dash { stroke-dasharray: 5 4; }
+  .mh-user { fill: var(--accent); }
+  .mh-dev { fill: var(--signal); }
+  .mh-int { fill: var(--faint); }
+
+  .el { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); text-anchor: middle; }
+  .el-l { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); text-anchor: start; }
+  .row-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase; fill: var(--faint);
+  }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 860px; }
+  th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  thead th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--faint); font-weight: 400;
+    background: var(--sunk); border-bottom: 1px solid var(--line);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td { font-size: 14.5px; color: var(--muted); }
+  td:first-child { color: var(--ink); }
+  code {
+    font-family: var(--mono);
+    font-size: .875em;
+    background: var(--sunk);
+    padding: 1.5px 5px;
+    border-radius: 3px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  td code, .card code { background: none; padding: 0; }
+  .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .08em;
+    text-transform: uppercase; padding: 3px 7px; border-radius: 3px; white-space: nowrap;
+  }
+  .tag-user { background: var(--accent-soft); color: var(--accent); }
+  .tag-dev { background: var(--signal-soft); color: var(--signal); }
+  .tag-int { background: var(--sunk); color: var(--muted); }
+
+  .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(288px,1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 5px; overflow:hidden; }
+  .card { background: var(--surface); padding: 20px 22px 22px; display:flex; flex-direction:column; gap:9px; }
+  .card h3 { font-family: var(--mono); font-size: 14.5px; font-weight: 500; margin:0; color: var(--ink); }
+  .card .kind { font-family: var(--mono); font-size: 10px; letter-spacing:.1em; text-transform:uppercase; color: var(--faint); }
+  .card p { font-size: 14.5px; color: var(--muted); line-height:1.55; }
+  .card ul { margin:0; padding-left: 0; list-style:none; display:flex; flex-direction:column; gap:4px; }
+  .card li { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .card li::before { content: "\00B7  "; color: var(--faint); }
+
+  .note {
+    border-left: 2px solid var(--accent);
+    padding: 4px 0 4px 22px;
+    max-width: 68ch;
+    color: var(--muted);
+  }
+  .note b { color: var(--ink); font-weight: 600; }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">MatPotLib &middot; Smart Plant Pot &middot; SD1 MVP</div>
+    <h1>How the repo is divided</h1>
+    <p class="lede">Five code modules, each built against a contract rather than against each other. <strong>The seams are the design</strong> &mdash; a pot that only knows one endpoint, an app that only knows REST, and a backend that is the sole holder of the database&rsquo;s service-role key.</p>
+    <div class="stats">
+      <div class="stat"><b>5</b><span>code modules</span></div>
+      <div class="stat"><b>3</b><span>languages</span></div>
+      <div class="stat"><b>2</b><span>auth contracts</span></div>
+      <div class="stat"><b>9</b><span>backend modules</span></div>
+      <div class="stat"><b>8</b><span>postgres tables</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>The module map</h2>
+    <p class="prose">Every box is either a directory in this repo or a service it depends on. Every arrow is a contract that outlives whichever module is being rewritten on either side of it.</p>
+
+    <figure>
+      <div class="frame">
+        <svg class="dg" viewBox="0 0 1180 500" role="img" aria-label="Module map: firmware and scripts post readings to the NestJS backend using a device token; the Expo app calls the same backend with a Supabase JWT and talks to Supabase directly only for auth; the backend is the sole service-role writer to Supabase and calls Expo Push and OpenAI; db seeds Supabase with migrations and species data.">
+          <defs>
+            <marker id="f1-au" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="mh-user"/></marker>
+            <marker id="f1-ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="mh-dev"/></marker>
+            <marker id="f1-ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="mh-int"/></marker>
+          </defs>
+
+          <rect class="node" x="40" y="52" width="200" height="110" rx="5"/>
+          <rect class="stripe-d" x="40" y="52" width="3" height="110"/>
+          <text class="nt" x="58" y="78">firmware/</text>
+          <text class="nd" x="58" y="100">Arduino Nano ESP32</text>
+          <text class="nd" x="58" y="116">BME280 &middot; BH1750</text>
+          <text class="nd" x="58" y="132">capacitive moisture</text>
+          <text class="nd" x="58" y="148">HTTPS every 15 min</text>
+
+          <rect class="node-dash" x="40" y="196" width="200" height="78" rx="5"/>
+          <text class="nt" x="58" y="222">scripts/</text>
+          <text class="nd" x="58" y="242">sim_device &middot; seed_demo</text>
+          <text class="nd" x="58" y="258">trigger_alert</text>
+
+          <rect class="node" x="400" y="52" width="320" height="202" rx="5"/>
+          <rect class="stripe-a" x="400" y="52" width="3" height="202"/>
+          <text class="nt" x="418" y="78">backend/</text>
+          <text class="nd" x="418" y="100">NestJS &middot; TypeScript</text>
+          <text class="nd" x="418" y="116">Docker &rarr; Azure Container Apps</text>
+          <line class="rule" x1="418" y1="132" x2="702" y2="132"/>
+          <text class="nd" x="418" y="154">auth &middot; profiles &middot; devices &middot; plants</text>
+          <text class="nd" x="418" y="170">species &middot; enrichment &middot; sensors</text>
+          <text class="nd" x="418" y="186">alerts &middot; common</text>
+          <text class="nd" x="418" y="212">JwtGuard (JWKS) + DeviceTokenGuard</text>
+          <text class="nd" x="418" y="232">sole holder of the service-role key</text>
+
+          <rect class="node" x="880" y="52" width="260" height="76" rx="5"/>
+          <text class="nt" x="898" y="78">Expo Push</text>
+          <text class="nd" x="898" y="98">alert &rarr; phone</text>
+          <text class="nd" x="898" y="114">2 h cooldown per key</text>
+
+          <rect class="node" x="880" y="178" width="260" height="76" rx="5"/>
+          <text class="nt" x="898" y="204">OpenAI</text>
+          <text class="nd" x="898" y="224">fills missing species ranges</text>
+          <text class="nd" x="898" y="240">cached as source=llm</text>
+
+          <rect class="node" x="40" y="336" width="200" height="124" rx="5"/>
+          <rect class="stripe-a" x="40" y="336" width="3" height="124"/>
+          <text class="nt" x="58" y="362">app/</text>
+          <text class="nd" x="58" y="382">Expo React Native</text>
+          <text class="nd" x="58" y="402">9 screens, 3 tabs</text>
+          <text class="nd" x="58" y="418">REST + polling</text>
+          <text class="nd" x="58" y="434">Supabase auth client</text>
+
+          <rect class="node-sunk" x="400" y="336" width="320" height="124" rx="5"/>
+          <text class="nt" x="418" y="362">Supabase</text>
+          <text class="nd" x="418" y="382">Postgres + Auth + JWKS</text>
+          <text class="nd" x="418" y="402">devices &middot; device_secrets &middot; alerts</text>
+          <text class="nd" x="418" y="418">sensor_readings &middot; user_plants</text>
+          <text class="nd" x="418" y="434">plant_species &middot; profiles &middot; push_tokens</text>
+
+          <rect class="node" x="880" y="336" width="260" height="124" rx="5"/>
+          <text class="nt" x="898" y="362">db/</text>
+          <text class="nd" x="898" y="382">SQL migration (8 tables)</text>
+          <text class="nd" x="898" y="402">MiFloraDB CSV import</text>
+          <text class="nd" x="898" y="418">5,335 species seeded</text>
+          <text class="nd" x="898" y="434">GPL-3.0 dataset</text>
+
+          <line class="e e-dev" x1="240" y1="107" x2="392" y2="107" marker-end="url(#f1-ad)"/>
+          <text class="el" x="316" y="95">POST /sensors/readings</text>
+          <text class="el" x="316" y="123">x-device-token</text>
+
+          <polyline class="e e-dev e-dash" points="240,235 300,235 300,107"/>
+          <text class="el-l" x="246" y="253">same endpoint</text>
+
+          <polyline class="e e-user" points="240,380 340,380 340,180 392,180" marker-end="url(#f1-au)"/>
+          <text class="el-l" x="246" y="370">REST + user JWT</text>
+
+          <line class="e e-user" x1="240" y1="420" x2="392" y2="420" marker-end="url(#f1-au)"/>
+          <text class="el" x="316" y="408">auth only</text>
+          <text class="el" x="316" y="437">(anon key)</text>
+
+          <line class="e e-int" x1="720" y1="90" x2="872" y2="90" marker-end="url(#f1-ai)"/>
+          <text class="el" x="796" y="78">push alert</text>
+          <text class="el" x="796" y="106">when out of range</text>
+
+          <line class="e e-int" x1="720" y1="216" x2="872" y2="216" marker-end="url(#f1-ai)"/>
+          <text class="el" x="796" y="204">species miss</text>
+          <text class="el" x="796" y="232">generate + cache</text>
+
+          <line class="e e-user" x1="560" y1="254" x2="560" y2="328" marker-end="url(#f1-au)"/>
+          <text class="el-l" x="574" y="284">reads + writes</text>
+          <text class="el-l" x="574" y="300">service-role key</text>
+
+          <line class="e e-int" x1="880" y1="398" x2="728" y2="398" marker-end="url(#f1-ai)"/>
+          <text class="el" x="804" y="386">migrations + seed</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <i><span class="swatch sw-dev"></span>device path &mdash; hardware token</i>
+        <i><span class="swatch sw-user"></span>user path &mdash; Supabase JWT</i>
+        <i><span class="swatch sw-int"></span>backend-initiated / build-time</i>
+      </div>
+      <figcaption><b>The pot and the phone never meet.</b> Both reach the backend, but through different doors: the ESP32 carries a hashed device secret and can only write readings, while the app carries a user JWT and can only touch its own rows. <code>scripts/</code> exists so the whole system runs with no hardware at all &mdash; it posts to the same endpoint with the same auth, which is why hardware delays never blocked the software.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>What crosses each boundary</h2>
+    <p class="prose">Eight seams, and each one is enforced by a named piece of code rather than by convention.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Boundary</th><th>What crosses</th><th>Credential</th><th>Enforced by</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>firmware/</code> &rarr; <code>backend/</code></td>
+            <td>One JSON reading every 15 min: moisture, temp, humidity, lux, battery</td>
+            <td><span class="tag tag-dev">x-device-token</span> sha256 vs <code>device_secrets.secret_hash</code></td>
+            <td><code>DeviceTokenGuard</code></td>
+          </tr>
+          <tr>
+            <td><code>scripts/</code> &rarr; <code>backend/</code></td>
+            <td>Synthetic readings, seeded users and plants, forced out-of-range values</td>
+            <td><span class="tag tag-dev">x-device-token</span> same contract, fake device</td>
+            <td><code>DeviceTokenGuard</code></td>
+          </tr>
+          <tr>
+            <td><code>app/</code> &rarr; <code>backend/</code></td>
+            <td>REST across profiles, devices, plants, species, sensors, alerts, push</td>
+            <td><span class="tag tag-user">Bearer JWT</span> verified against Supabase JWKS</td>
+            <td><code>JwtGuard</code> &rarr; <code>@CurrentUser()</code></td>
+          </tr>
+          <tr>
+            <td><code>app/</code> &rarr; Supabase</td>
+            <td>Sign-up, sign-in, password reset, session refresh &mdash; nothing else</td>
+            <td><span class="tag tag-user">anon key</span> public, safe to ship in the bundle</td>
+            <td>Row-level security</td>
+          </tr>
+          <tr>
+            <td><code>backend/</code> &rarr; Supabase</td>
+            <td>Every application read and write in the system</td>
+            <td><span class="tag tag-int">service role</span> bypasses RLS</td>
+            <td><code>SupabaseService.admin</code></td>
+          </tr>
+          <tr>
+            <td><code>backend/</code> &rarr; Expo Push</td>
+            <td>One notification per out-of-range metric, deduped by cooldown key</td>
+            <td><span class="tag tag-int">expo token</span> from <code>push_tokens</code></td>
+            <td><code>AlertsService</code> &middot; 2 h cooldown</td>
+          </tr>
+          <tr>
+            <td><code>backend/</code> &rarr; OpenAI</td>
+            <td>One generated <code>plant_species</code> row when a search finds nothing</td>
+            <td><span class="tag tag-int">API key</span> optional &mdash; fails soft to null</td>
+            <td><code>EnrichmentService</code></td>
+          </tr>
+          <tr>
+            <td><code>db/</code> &rarr; Supabase</td>
+            <td>Schema, RLS policies, indexes, and 5,335 seeded species</td>
+            <td><span class="tag tag-int">migration</span> applied once, out of band</td>
+            <td><code>20260704000001_init.sql</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Inside the backend</h2>
+    <p class="prose">The largest module divides again, into nine NestJS modules that fall into three shapes. Only two of them talk to a sibling &mdash; the rest reach straight through to Postgres.</p>
+
+    <figure>
+      <div class="frame">
+        <svg class="dg" viewBox="0 0 1120 430" role="img" aria-label="Backend internals: four self-contained modules (auth, profiles, devices, plants); two collaborating pairs where sensors calls alerts and species falls back to enrichment; and a shared common module holding SupabaseService and both guards.">
+          <defs>
+            <marker id="f2-ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="mh-int"/></marker>
+          </defs>
+
+          <text class="row-label" x="60" y="26">Self-contained &mdash; controller, service, Supabase</text>
+
+          <rect class="node" x="60" y="40" width="232" height="64" rx="5"/>
+          <rect class="stripe-a" x="60" y="40" width="3" height="64"/>
+          <text class="nt" x="78" y="66">auth/</text>
+          <text class="nd" x="78" y="88">push token registration</text>
+
+          <rect class="node" x="316" y="40" width="232" height="64" rx="5"/>
+          <rect class="stripe-a" x="316" y="40" width="3" height="64"/>
+          <text class="nt" x="334" y="66">profiles/</text>
+          <text class="nd" x="334" y="88">display name, experience</text>
+
+          <rect class="node" x="572" y="40" width="232" height="64" rx="5"/>
+          <rect class="stripe-a" x="572" y="40" width="3" height="64"/>
+          <text class="nt" x="590" y="66">devices/</text>
+          <text class="nd" x="590" y="88">claim &middot; list &middot; unlink</text>
+
+          <rect class="node" x="828" y="40" width="232" height="64" rx="5"/>
+          <rect class="stripe-a" x="828" y="40" width="3" height="64"/>
+          <text class="nt" x="846" y="66">plants/</text>
+          <text class="nd" x="846" y="88">user plant CRUD</text>
+
+          <text class="row-label" x="60" y="140">Collaborating pairs</text>
+
+          <rect class="node-dash" x="60" y="154" width="500" height="124" rx="5"/>
+          <text class="row-label" x="78" y="177">ingest pipeline</text>
+          <rect class="node" x="80" y="190" width="190" height="64" rx="5"/>
+          <rect class="stripe-d" x="80" y="190" width="3" height="64"/>
+          <text class="nt" x="98" y="216">sensors/</text>
+          <text class="nd-dev" x="98" y="238">POST /readings</text>
+          <rect class="node" x="350" y="190" width="190" height="64" rx="5"/>
+          <rect class="stripe-a" x="350" y="190" width="3" height="64"/>
+          <text class="nt" x="368" y="216">alerts/</text>
+          <text class="nd" x="368" y="238">evaluate + push</text>
+          <line class="e e-int" x1="270" y1="222" x2="342" y2="222" marker-end="url(#f2-ai)"/>
+          <text class="el" x="306" y="210">evaluates</text>
+
+          <rect class="node-dash" x="600" y="154" width="460" height="124" rx="5"/>
+          <text class="row-label" x="618" y="177">species lookup</text>
+          <rect class="node" x="620" y="190" width="170" height="64" rx="5"/>
+          <rect class="stripe-a" x="620" y="190" width="3" height="64"/>
+          <text class="nt" x="638" y="216">species/</text>
+          <text class="nd" x="638" y="238">search 5,335 rows</text>
+          <rect class="node" x="870" y="190" width="170" height="64" rx="5"/>
+          <rect class="stripe-n" x="870" y="190" width="3" height="64"/>
+          <text class="nt" x="888" y="216">enrichment/</text>
+          <text class="nd" x="888" y="238">LLM fallback</text>
+          <line class="e e-int" x1="790" y1="222" x2="862" y2="222" marker-end="url(#f2-ai)"/>
+          <text class="el" x="826" y="210">on miss</text>
+
+          <text class="row-label" x="60" y="314">Shared base &mdash; imported by every module above</text>
+
+          <rect class="node-sunk" x="60" y="328" width="1000" height="64" rx="5"/>
+          <rect class="stripe-n" x="60" y="328" width="3" height="64"/>
+          <text class="nt" x="78" y="354">common/</text>
+          <text class="nd" x="78" y="376">SupabaseService &middot; JwtGuard &middot; DeviceTokenGuard &middot; CurrentUser decorator &middot; exception filter &middot; constants</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <i><span class="swatch sw-dev"></span>reachable by a device token</i>
+        <i><span class="swatch sw-user"></span>behind the user JWT</i>
+        <i><span class="swatch sw-int"></span>internal only, no HTTP surface</i>
+      </div>
+      <figcaption><b>One route in the whole API is not behind a user&rsquo;s JWT.</b> <code>POST /sensors/readings</code> is the pot&rsquo;s only door, and it is the only place a <code>DeviceTokenGuard</code> appears. Ingest is synchronous through the pair &mdash; the controller stores the reading, then calls <code>alerts.evaluate()</code> in the same request, so a reading and its alert can never drift apart.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>The modules, one by one</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="kind">C++ &middot; PlatformIO</div>
+        <h3>firmware/</h3>
+        <p>The pot. Reads three sensors over I&sup2;C and analog, then posts over HTTPS. Knows one URL and one secret; knows nothing about users, plants, or species.</p>
+        <ul>
+          <li>src/main.cpp &mdash; connectWiFi, postReading, loop</li>
+          <li>include/secrets.h.example</li>
+          <li>platformio.ini &mdash; arduino_nano_esp32</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="kind">TypeScript &middot; NestJS</div>
+        <h3>backend/</h3>
+        <p>The only component with write access to the database. Validates both credential types, evaluates readings against species ranges, and owns every business rule.</p>
+        <ul>
+          <li>src/ &mdash; 9 modules, guards, DTOs</li>
+          <li>test/ &mdash; unit + e2e with Expo mocked</li>
+          <li>Dockerfile &rarr; ACR &rarr; Container Apps</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="kind">TypeScript &middot; Expo RN</div>
+        <h3>app/</h3>
+        <p>The phone. A session gate routes to auth, onboarding, or tabs; screens poll the backend for readings and alerts. Written against the spec&rsquo;s endpoint list before the backend existed.</p>
+        <ul>
+          <li>api/ &mdash; client.ts, supabase.ts</li>
+          <li>navigation/ &mdash; Root, Auth, Tab</li>
+          <li>screens/ hooks/ components/ types/</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="kind">SQL &middot; TypeScript</div>
+        <h3>db/</h3>
+        <p>The shape of the data, versioned. One migration defines all 8 tables with RLS and indexes; an import script loads the dataset every alert threshold is compared against.</p>
+        <ul>
+          <li>supabase/migrations/ &mdash; init.sql</li>
+          <li>import_miflora.ts &mdash; 5,335 species</li>
+          <li>SCHEMA.md &mdash; column-level reference</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="kind">TypeScript</div>
+        <h3>scripts/</h3>
+        <p>Hardware, simulated. Lets the backend, app, alerting, and push path all be exercised end to end with no pot on the desk &mdash; the reason a firmware blocker never stalled the build.</p>
+        <ul>
+          <li>sim_device.ts &mdash; posts live readings</li>
+          <li>seed_demo.ts &mdash; user, device, plant, 48 h</li>
+          <li>trigger_alert.ts &mdash; forces out-of-range</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="kind">YAML &middot; Markdown</div>
+        <h3>.github/ + deploy/</h3>
+        <p>Build and release. CI lints, builds, and tests both TypeScript modules on every push; the deploy workflow pushes an image to ACR. Rollout stays manual &mdash; the university tenant blocks the service principal CI would need.</p>
+        <ul>
+          <li>workflows/ci.yml &mdash; backend + app jobs</li>
+          <li>workflows/deploy.yml &mdash; docker &rarr; ACR</li>
+          <li>deploy/azure/ and DEPLOYMENT.md</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why it divides this way</h2>
+    <p class="note"><b>The contracts were written before any of the code.</b> <code>docs/HANDOFF.md</code> landed as a 439-line spec in the first feature commit, pinning the schema, every endpoint, and both auth mechanisms up front. That is what let the modules be built out of order and integrated afterward &mdash; the app was written against the endpoint list before the backend implementing it existed, and it worked because neither side was inventing the seam. The modular split above is that spec, made out of directories.</p>
+  </section>
+
+</div>

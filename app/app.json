@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "MatPotLib",
+    "slug": "matpotlib",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "matpotlib",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.matpotlib.app"
+    },
+    "android": {
+      "package": "com.matpotlib.app"
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#2E7D32"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
+  }
+}

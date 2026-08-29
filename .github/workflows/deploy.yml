@@ -1,0 +1,33 @@
+name: Build backend image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ACR admin credentials in repo secrets (ACR_SERVER, ACR_USERNAME,
+      # ACR_PASSWORD). azure/login with a service principal is unavailable:
+      # the UCF Entra tenant blocks students from creating app registrations.
+      - name: Log in to ACR
+        run: echo "${{ secrets.ACR_PASSWORD }}" | docker login "${{ secrets.ACR_SERVER }}" -u "${{ secrets.ACR_USERNAME }}" --password-stdin
+
+      - name: Build and push image
+        run: |
+          IMAGE="${{ secrets.ACR_SERVER }}/matpotlib-backend"
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" backend
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      # Rolling out to the Container App needs ARM auth we can't get in CI
+      # (no service principal). After this workflow goes green, run locally:
+      #   az containerapp update -n matpotlib-backend -g matpotlib-rg \
+      #     --image "matpotlibacr.azurecr.io/matpotlib-backend:<commit sha>"

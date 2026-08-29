@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
-import { AuthController } from './auth.controller';
-import { AuthGuard } from './auth.guard';
+import { PushController } from './push.controller';
+import { PushService } from './push.service';
 
 @Module({
-  controllers: [AuthController],
-  providers: [AuthGuard],
-  exports: [AuthGuard],
+  controllers: [PushController],
+  providers: [PushService],
 })
 export class AuthModule {}
