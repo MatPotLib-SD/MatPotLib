@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "scheme": "matpotlib",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.matpotlib.app"
@@ -20,7 +22,9 @@
         {
           "color": "#2E7D32"
         }
-      ]
+      ],
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
