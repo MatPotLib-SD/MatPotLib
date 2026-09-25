@@ -57,8 +57,9 @@ What the import does:
 ### Enrichment pass (optional, needs `OPENAI_API_KEY`)
 
 If `OPENAI_API_KEY` is set in `.env`, the script then queries the DB for rows
-missing **any** `ideal_*` value and asks OpenAI (chat completions, JSON output,
-temperature 0) to fill **only the missing cells**. Values outside sanity
+missing **any** `ideal_*` value and asks GPT-4o mini through the Responses API
+with web search and JSON output to fill **only the missing cells**. Each
+incomplete row can incur a separate web search call. Values outside sanity
 bounds (e.g. temp outside −40…60 °C) are discarded. Per-row API failures are
 logged and skipped — the run never aborts. At the end it prints a random
 sample of ~20 filled rows; **manually spot-check these** against a care guide

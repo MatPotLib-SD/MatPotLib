@@ -27,7 +27,6 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'csv-parse';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
 import 'dotenv/config';
 
 const __dirname_ = dirname(fileURLToPath(import.meta.url));
@@ -189,6 +188,15 @@ interface EnrichedValues {
   ideal_humidity_max?: number | null;
 }
 
+interface OpenAIResponse {
+  status?: string;
+  output?: {
+    type?: string;
+    status?: string;
+    content?: { type?: string; text?: string }[];
+  }[];
+}
+
 const COLUMN_DESCRIPTIONS: Record<IdealColumn, string> = {
   ideal_moisture_min: 'minimum ideal soil moisture, percent (0-100)',
   ideal_moisture_max: 'maximum ideal soil moisture, percent (0-100)',
@@ -213,7 +221,7 @@ const COLUMN_BOUNDS: Record<IdealColumn, [number, number]> = {
 };
 
 async function enrichRow(
-  openai: OpenAI,
+  apiKey: string,
   row: SpeciesRow,
   missing: IdealColumn[],
 ): Promise<Partial<Record<IdealColumn, number>> | null> {
@@ -222,31 +230,56 @@ async function enrichRow(
     .map((c) => `${c}=${row[c]}`)
     .join(', ');
 
-  const completion = await openai.chat.completions.create({
-    model: OPENAI_MODEL,
-    response_format: { type: 'json_object' },
-    temperature: 0,
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are a horticulture reference. Given a plant species, provide typical ideal ' +
-          'growing-condition ranges for indoor/potted care. Respond ONLY with a JSON object ' +
-          'containing exactly the requested keys with numeric values. If you genuinely cannot ' +
-          'estimate a value, use null for that key.',
-      },
-      {
-        role: 'user',
-        content:
-          `Species: ${row.scientific_name}` +
-          (row.common_name ? ` (common name: ${row.common_name})` : '') +
-          (known ? `\nAlready known values: ${known}` : '') +
-          `\nProvide these missing values:\n${fieldList}`,
-      },
-    ],
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      tools: [{ type: 'web_search' }],
+      tool_choice: 'required',
+      text: { format: { type: 'json_object' } },
+      input: [
+        {
+          role: 'system',
+          content:
+            'You are a horticulture reference. Search the web for the plant species, ' +
+            'then provide typical ideal growing-condition ranges for indoor/potted care. ' +
+            'Respond ONLY with a JSON object containing exactly the requested keys with ' +
+            'numeric values. If you genuinely cannot estimate a value, use null for that key.',
+        },
+        {
+          role: 'user',
+          content:
+            `Species: ${row.scientific_name}` +
+            (row.common_name ? ` (common name: ${row.common_name})` : '') +
+            (known ? `\nAlready known values: ${known}` : '') +
+            `\nProvide these missing values:\n${fieldList}`,
+        },
+      ],
+    }),
   });
+  if (!response.ok) {
+    throw new Error(`OpenAI request failed with ${response.status}`);
+  }
 
-  const content = completion.choices[0]?.message?.content;
+  const body = (await response.json()) as OpenAIResponse;
+  const output = body.output ?? [];
+  if (
+    body.status !== 'completed' ||
+    !output.some(
+      (item) => item.type === 'web_search_call' && item.status === 'completed',
+    )
+  ) {
+    console.warn(`  [enrich] ${row.scientific_name}: web search did not complete`);
+    return null;
+  }
+  const content = output
+    .filter((item) => item.type === 'message')
+    .flatMap((item) => item.content ?? [])
+    .find((item) => item.type === 'output_text')?.text;
   if (!content) return null;
 
   let parsed: EnrichedValues;
@@ -295,7 +328,8 @@ async function enrichmentPass(supabase: SupabaseClient): Promise<void> {
 
   console.log(`Rows missing at least one ideal_* value: ${incomplete.length}`);
 
-  if (!process.env.OPENAI_API_KEY) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     console.log('OPENAI_API_KEY not set — skipping enrichment pass.');
     console.log(`(${incomplete.length} incomplete rows left as-is; re-run with a key to fill.)`);
     return;
@@ -305,7 +339,6 @@ async function enrichmentPass(supabase: SupabaseClient): Promise<void> {
     return;
   }
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   let filled = 0;
   let failed = 0;
   const filledSamples: { scientific_name: string; updates: Record<string, number> }[] = [];
@@ -319,7 +352,7 @@ async function enrichmentPass(supabase: SupabaseClient): Promise<void> {
       const missing = missingIdealColumns(row);
       if (missing.length === 0) continue;
       try {
-        const updates = await enrichRow(openai, row, missing);
+        const updates = await enrichRow(apiKey, row, missing);
         if (!updates) {
           failed++;
           continue;

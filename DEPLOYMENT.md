@@ -33,7 +33,7 @@ Everything below is a step a human must perform; nothing here is automated. Plac
 
 ## 2. OpenAI (optional)
 
-- Put `OPENAI_API_KEY` in `backend/.env` (runtime species fallback) and `db/.env` (seed enrichment). Both features degrade gracefully without it: search returns "no data found" and the import skips enrichment.
+- Put `OPENAI_API_KEY` in `backend/.env` (runtime species fallback) and `db/.env` (seed enrichment). Both call GPT-4o mini with web search through the Responses API; the import can make one paid search call per incomplete species row. Without the key, search returns "no data found" and the import skips enrichment.
 
 ## 3. Azure (backend hosting)
 

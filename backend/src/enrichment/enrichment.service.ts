@@ -3,12 +3,18 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../common/supabase.service';
 import type { PlantSpeciesRow } from '../common/database.types';
 
-interface OpenAIChatResponse {
-  choices?: { message?: { content?: string } }[];
+interface OpenAIResponse {
+  status?: string;
+  output?: {
+    type?: string;
+    status?: string;
+    content?: { type?: string; text?: string }[];
+  }[];
 }
 
 const SYSTEM_PROMPT =
-  'You are a horticulture data assistant. Given a plant name, respond with ' +
+  'You are a horticulture data assistant. Search the web to verify the plant ' +
+  'and its care ranges. Given a plant name, respond with ' +
   'a single JSON object with exactly these keys: common_name (string), ' +
   'scientific_name (string), care_level (one of "easy", "moderate", ' +
   '"hard"), ideal_moisture_min, ideal_moisture_max (soil moisture percent, ' +
@@ -43,7 +49,7 @@ export class EnrichmentService {
 
     try {
       const response = await fetch(
-        'https://api.openai.com/v1/chat/completions',
+        'https://api.openai.com/v1/responses',
         {
           method: 'POST',
           headers: {
@@ -52,9 +58,10 @@ export class EnrichmentService {
           },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
-            temperature: 0,
-            response_format: { type: 'json_object' },
-            messages: [
+            tools: [{ type: 'web_search' }],
+            tool_choice: 'required',
+            text: { format: { type: 'json_object' } },
+            input: [
               { role: 'system', content: SYSTEM_PROMPT },
               { role: 'user', content: `Plant: ${query}` },
             ],
@@ -66,8 +73,22 @@ export class EnrichmentService {
         return null;
       }
 
-      const body = (await response.json()) as OpenAIChatResponse;
-      const content = body.choices?.[0]?.message?.content;
+      const body = (await response.json()) as OpenAIResponse;
+      const output = body.output ?? [];
+      if (
+        body.status !== 'completed' ||
+        !output.some(
+          (item) =>
+            item.type === 'web_search_call' && item.status === 'completed',
+        )
+      ) {
+        this.logger.warn(`OpenAI web search did not complete for "${query}"`);
+        return null;
+      }
+      const content = output
+        .filter((item) => item.type === 'message')
+        .flatMap((item) => item.content ?? [])
+        .find((item) => item.type === 'output_text')?.text;
       if (!content) return null;
       const parsed = JSON.parse(content) as Record<string, unknown>;
 

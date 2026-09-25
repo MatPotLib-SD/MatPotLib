@@ -204,7 +204,7 @@ Claim flow:
    - ignore soil EC/fertility, pH, image, care text columns
    - `source = 'MiFloraDB'`
 3. Upsert into Supabase.
-4. Enrichment pass (only if `OPENAI_API_KEY` set): for rows missing any ideal_* cell, call OpenAI to fill, write back. Random-sample log ~20 filled rows for manual verification. If no key, skip and log count of incomplete rows.
+4. Enrichment pass (only if `OPENAI_API_KEY` set): for rows missing any ideal_* cell, call GPT-4o mini with Responses API web search to fill, write back. Each incomplete row can incur a separate paid search call. Random-sample log ~20 filled rows for manual verification. If no key, skip and log count of incomplete rows.
 
 Runtime fallback (`enrichment` module):
 - When user searches a species not in `plant_species`, backend calls OpenAI web-search to generate one row, inserts it (`source='llm'`), returns to user. Cache persists for all users.
