@@ -22,6 +22,7 @@ export class InMemorySupabase {
     plant_species: [],
     user_plants: [],
     sensor_readings: [],
+    capture_requests: [],
     alerts: [],
     push_tokens: [],
   };
@@ -29,6 +30,124 @@ export class InMemorySupabase {
   from(table: string): FakeQuery {
     if (!this.tables[table]) this.tables[table] = [];
     return new FakeQuery(this.tables[table]);
+  }
+
+  rpc(name: string, args: Record<string, unknown>): Promise<QueryResult> {
+    if (name === 'tabling_owned_latest' || name === 'tabling_owned_history') {
+      const device = this.tables.devices.find(
+        (row) =>
+          row.id === args.p_device_id && row.owner_user_id === args.p_user_id,
+      );
+      if (!device)
+        return Promise.resolve({
+          data: null,
+          error: { message: 'device_not_found' },
+        });
+      const readings = this.tables.sensor_readings
+        .filter((row) => row.device_id === args.p_device_id)
+        .filter(
+          (row) =>
+            !args.p_from || String(row.captured_at) >= (args.p_from as string),
+        )
+        .filter(
+          (row) =>
+            !args.p_to || String(row.captured_at) <= (args.p_to as string),
+        )
+        .sort(
+          (a, b) =>
+            String(a.captured_at).localeCompare(String(b.captured_at)) ||
+            Number(a.id) - Number(b.id),
+        );
+      return Promise.resolve({
+        data:
+          name === 'tabling_owned_latest'
+            ? (readings.at(-1) ?? null)
+            : readings.slice(0, 5000),
+        error: null,
+      });
+    }
+    if (name !== 'tabling_ingest_reading') {
+      return Promise.resolve({
+        data: null,
+        error: { message: `unsupported RPC ${name}` },
+      });
+    }
+    const now = new Date();
+    const age = (args.p_sample_age_ms as number | null) ?? null;
+    const captureId = args.p_capture_request_id as string | null;
+    const existing = captureId
+      ? this.tables.sensor_readings.find(
+          (row) => row.capture_request_id === captureId,
+        )
+      : null;
+    if (existing)
+      return Promise.resolve({
+        data: { reading: existing, inserted: false, suppress_alerts: false },
+        error: null,
+      });
+    const device = this.tables.devices.find(
+      (row) => row.id === args.p_device_id,
+    );
+    if (!device)
+      return Promise.resolve({
+        data: null,
+        error: { message: 'device_not_found' },
+      });
+    const capture = captureId
+      ? this.tables.capture_requests.find(
+          (row) => row.id === captureId && row.device_id === args.p_device_id,
+        )
+      : null;
+    if (captureId && !capture) {
+      return Promise.resolve({
+        data: null,
+        error: { message: 'capture_not_found' },
+      });
+    }
+    if (
+      captureId &&
+      (!capture || !['pending', 'measuring'].includes(String(capture.state)))
+    ) {
+      return Promise.resolve({
+        data: null,
+        error: { message: 'capture_not_active' },
+      });
+    }
+    if (captureId && age === null) {
+      return Promise.resolve({
+        data: null,
+        error: { message: 'sample_age_required' },
+      });
+    }
+    const row: Row = {
+      id: this.tables.sensor_readings.length + 1,
+      device_id: args.p_device_id,
+      ts: now.toISOString(),
+      captured_at: new Date(now.getTime() - (age ?? 0)).toISOString(),
+      time_source: age === null ? 'receipt' : 'estimated',
+      sample_age_ms: age,
+      capture_request_id: captureId,
+      moisture: args.p_moisture,
+      temp_c: args.p_temp_c,
+      humidity: args.p_humidity,
+      lux: args.p_lux,
+      battery_pct: args.p_battery_pct,
+    };
+    this.tables.sensor_readings.push(row);
+    device.last_seen_at = row.ts;
+    device.status = 'online';
+    if (capture) {
+      capture.state = 'completed';
+      capture.result_reading_id = row.id;
+    }
+    return Promise.resolve({
+      data: {
+        reading: row,
+        inserted: true,
+        suppress_alerts: !!device.tabling_enabled,
+      },
+      error: null,
+    });
   }
 
   seed(table: string, rows: Row[]): void {
@@ -47,7 +166,7 @@ export class FakeQuery implements PromiseLike<QueryResult> {
   private op: 'select' | 'insert' | 'update' | 'delete' = 'select';
   private payload: Row | Row[] | null = null;
   private filters: Filter[] = [];
-  private orderBy: { column: string; ascending: boolean } | null = null;
+  private orderBy: { column: string; ascending: boolean }[] = [];
   private limitCount: number | null = null;
   private wantSingle = false;
   private wantMaybeSingle = false;
@@ -110,7 +229,7 @@ export class FakeQuery implements PromiseLike<QueryResult> {
   }
 
   order(column: string, options?: { ascending?: boolean }): this {
-    this.orderBy = { column, ascending: options?.ascending !== false };
+    this.orderBy.push({ column, ascending: options?.ascending !== false });
     return this;
   }
 
@@ -195,21 +314,23 @@ export class FakeQuery implements PromiseLike<QueryResult> {
       result = matches;
     } else {
       result = [...matches];
-      if (this.orderBy) {
-        const { column, ascending } = this.orderBy;
+      if (this.orderBy.length) {
         result.sort((a, b) => {
-          const av = a[column] as string | number | null;
-          const bv = b[column] as string | number | null;
-          if (av === bv) return 0;
-          if (av == null) return 1;
-          if (bv == null) return -1;
-          const cmp =
-            typeof av === 'number' && typeof bv === 'number'
-              ? av - bv
-              : String(av) < String(bv)
-                ? -1
-                : 1;
-          return cmp * (ascending ? 1 : -1);
+          for (const { column, ascending } of this.orderBy) {
+            const av = a[column] as string | number | null;
+            const bv = b[column] as string | number | null;
+            if (av === bv) continue;
+            if (av == null) return 1;
+            if (bv == null) return -1;
+            const cmp =
+              typeof av === 'number' && typeof bv === 'number'
+                ? av - bv
+                : String(av) < String(bv)
+                  ? -1
+                  : 1;
+            return cmp * (ascending ? 1 : -1);
+          }
+          return 0;
         });
       }
       if (this.limitCount != null) result = result.slice(0, this.limitCount);

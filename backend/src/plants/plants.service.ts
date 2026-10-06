@@ -147,26 +147,16 @@ export class PlantsService {
 
     let latestReading: SensorReadingRow | null = null;
     if (plant.device_id) {
-      // Defence in depth against a stale user_plants.device_id: unlink now
-      // clears it, but rows written before that fix can still point at a pot
-      // somebody else has since claimed. Reading by device_id alone would
-      // show their sensor data on this plant's card.
-      const { data: device } = await db
-        .from('devices')
-        .select('id')
-        .eq('id', plant.device_id)
-        .eq('owner_user_id', plant.owner_user_id)
-        .maybeSingle();
-
-      if (device) {
-        const { data } = await db
-          .from('sensor_readings')
-          .select('*')
-          .eq('device_id', plant.device_id)
-          .order('ts', { ascending: false })
-          .limit(1);
-        latestReading = data?.[0] ?? null;
+      const { data, error } = await db.rpc('tabling_owned_latest', {
+        p_device_id: plant.device_id,
+        p_user_id: plant.owner_user_id,
+      });
+      // Stale plant links may survive an earlier ownership transfer. The
+      // ownership-scoped RPC returns no reading after transfer.
+      if (error && !/device_not_found/.test(error.message)) {
+        throw new InternalServerErrorException(error.message);
       }
+      latestReading = error ? null : (data as SensorReadingRow | null);
     }
 
     return { ...plant, species, latest_reading: latestReading };

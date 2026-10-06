@@ -26,9 +26,10 @@ export class SensorsController {
   @Post('readings')
   @UseGuards(DeviceTokenGuard)
   async ingest(@Body() dto: CreateReadingDto) {
-    const reading = await this.sensors.insert(dto);
-    await this.alerts.evaluate(dto.device_id, reading);
-    return { ok: true };
+    const result = await this.sensors.insert(dto);
+    if (result.inserted && !result.suppress_alerts)
+      await this.alerts.evaluate(dto.device_id, result.reading);
+    return { ok: true, reading: result.reading };
   }
 
   @Get(':deviceId')

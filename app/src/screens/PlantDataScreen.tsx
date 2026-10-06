@@ -16,6 +16,7 @@ import { getLatestReading, getPlant, getReadingHistory } from '../api/client';
 import { MetricGauge } from '../components/MetricGauge';
 import { ErrorState } from '../components/ui';
 import { relativeTime } from '../constants/helpers';
+import { readingTime, newerReading } from '../tabling/model';
 import { theme } from '../constants/theme';
 import { usePolling } from '../hooks/usePolling';
 import type { HomeStackParamList, Plant, Reading } from '../types';
@@ -41,7 +42,10 @@ type MetricKey = (typeof METRICS)[number]['key'];
 function downsample(readings: Reading[], maxPoints = 120): Reading[] {
   if (readings.length <= maxPoints) return readings;
   const step = Math.ceil(readings.length / maxPoints);
-  return readings.filter((_, i) => i % step === 0);
+  const points = readings.filter((_, i) => i % step === 0);
+  const last = readings[readings.length - 1];
+  if (points[points.length - 1]?.id !== last.id) points.push(last);
+  return points;
 }
 
 /**
@@ -61,23 +65,34 @@ export function PlantDataScreen({ route }: Props) {
   const [metric, setMetric] = useState<MetricKey>('moisture');
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyEnd, setHistoryEnd] = useState(0);
 
   const load = useCallback(async () => {
     try {
-      const [plantData, latestReading, historyData] = await Promise.all([
-        getPlant(plantId),
-        getLatestReading(deviceId).catch(() => null),
-        getReadingHistory(deviceId, new Date(Date.now() - WINDOWS[window]), new Date()),
-      ]);
+      const plantData = await getPlant(plantId);
       setPlant(plantData);
-      setLatest(latestReading ?? plantData.latest_reading ?? null);
-      setHistory(historyData);
+      if (plantData.latest_reading) setLatest((old) => newerReading(plantData.latest_reading!, old) ? plantData.latest_reading! : old);
       setError(null);
     } catch (err) {
       console.warn('Failed to load plant data', err);
       // Without this the screen renders a nameless plant with "No readings
       // yet", which reads as "your pot is idle" rather than "we failed".
       setError(err instanceof Error ? err.message : 'Please try again.');
+    }
+    try {
+      const latestReading = await getLatestReading(deviceId);
+      if (latestReading) setLatest((old) => newerReading(latestReading, old) ? latestReading : old);
+    } catch (err) {
+      setError(err instanceof Error ? `Latest reading unavailable: ${err.message}` : 'Latest reading unavailable.');
+    }
+    try {
+      const historyData = await getReadingHistory(deviceId, new Date(Date.now() - WINDOWS[window]), new Date());
+      setHistory(historyData);
+      setHistoryEnd(Date.now());
+      setHistoryError(null);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : 'History unavailable.');
     }
   }, [plantId, deviceId, window]);
 
@@ -103,7 +118,17 @@ export function PlantDataScreen({ route }: Props) {
     lux: <Sun size={16} color={theme.colors.metric.lux} />,
   };
 
-  const chartData = downsample(history).map((r) => ({ value: r[metric] ?? 0 }));
+  const chartWidth = width - theme.spacing.md * 2 - theme.spacing.lg * 2;
+  const chartEnd = historyEnd;
+  const chartStart = chartEnd - WINDOWS[window];
+  const points = downsample(history).filter((r) => Number.isFinite(r[metric]) && Number.isFinite(Date.parse(readingTime(r))));
+  const chartData = points.map((r, index) => ({
+    value: r[metric],
+    spacing: index + 1 < points.length
+      ? Math.max(0, (Date.parse(readingTime(points[index + 1])) - Date.parse(readingTime(r))) / WINDOWS[window] * chartWidth)
+      : 0,
+  }));
+  const firstSpacing = points.length ? Math.max(0, (Date.parse(readingTime(points[0])) - chartStart) / WINDOWS[window] * chartWidth) : 0;
   const selectedMetric = METRICS.find((m) => m.key === metric) ?? METRICS[0];
 
   return (
@@ -153,6 +178,7 @@ export function PlantDataScreen({ route }: Props) {
       </View>
 
       <View style={styles.chartCard}>
+        {error && plant && <Text style={styles.errorText}>{error}. Showing previous data.</Text>}
         <View style={styles.chipRow}>
           {METRICS.map((m) => (
             <Pressable
@@ -185,32 +211,29 @@ export function PlantDataScreen({ route }: Props) {
           ))}
         </View>
 
+        {historyError && <Text style={styles.errorText}>History unavailable: {historyError}. Showing previous chart data.</Text>}
         {chartData.length > 1 ? (
+          <>
           <LineChart
             data={chartData}
-            width={width - theme.spacing.md * 2 - theme.spacing.lg * 2}
+            width={chartWidth}
             height={200}
-            adjustToWidth
             thickness={2}
             color={selectedMetric.color}
             hideDataPoints
-            curved
-            areaChart
-            startFillColor={selectedMetric.color}
-            endFillColor={theme.colors.surface}
-            startOpacity={0.25}
-            endOpacity={0.02}
             yAxisTextStyle={{ color: theme.colors.textSecondary, fontSize: theme.fontSize.xs }}
             yAxisColor={theme.colors.border}
             xAxisColor={theme.colors.border}
             rulesColor={theme.colors.border}
             noOfSections={4}
-            initialSpacing={0}
+            initialSpacing={firstSpacing}
           />
+          <View style={styles.timeLabels}><Text style={styles.noDataText}>{new Date(chartStart).toLocaleString()}</Text><Text style={styles.noDataText}>Now</Text></View>
+          </>
         ) : (
           <View style={styles.noData}>
             <Text style={styles.noDataText}>
-              Not enough data for this window yet. Readings arrive every 15 minutes.
+              Not enough readings for this window yet. Scheduled and requested captures appear here.
             </Text>
           </View>
         )}
@@ -296,4 +319,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     textAlign: 'center',
   },
+  timeLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+  errorText: { color: theme.colors.status.error, fontSize: theme.fontSize.sm },
 });

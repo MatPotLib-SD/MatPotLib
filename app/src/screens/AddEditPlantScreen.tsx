@@ -52,6 +52,8 @@ export function AddEditPlantScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (!plantId) return;
     let cancelled = false;
+    // Clear a previous prefill failure before this explicit reload.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPrefillError(null);
     getPlant(plantId)
       .then((plant) => {
@@ -87,6 +89,8 @@ export function AddEditPlantScreen({ navigation, route }: Props) {
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
+      // A short query has no corresponding remote results.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       setSearching(false);
       setSearchError(false);

@@ -1,0 +1,24 @@
+x-expo: &expo
+  build: ./app
+  image: matpotlib-expo:dev
+  env_file: ./app/.env
+  init: true
+  stdin_open: true
+  tty: true
+  volumes:
+    - expo-auth:/root/.expo
+
+services:
+  app:
+    <<: *expo
+    environment:
+      EXPO_PUBLIC_DEMO_MODE: "false"
+    command: ["npm", "start", "--", "--tunnel", "--go"]
+
+  tabling:
+    <<: *expo
+    profiles: [tabling]
+    command: ["npm", "run", "tabling", "--", "--tunnel", "--go"]
+
+volumes:
+  expo-auth:

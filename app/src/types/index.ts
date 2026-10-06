@@ -31,6 +31,10 @@ export interface Reading {
   humidity: number;
   lux: number;
   battery_pct: number | null;
+  captured_at?: string | null;
+  time_source?: 'estimated' | 'receipt' | string;
+  capture_request_id?: string | null;
+  sample_age_ms?: number | null;
 }
 
 export interface Plant {
@@ -72,6 +76,21 @@ export interface Device {
   last_seen_at: string | null;
   claim_code: string | null;
   created_at: string;
+  tabling_enabled?: boolean;
+  last_command_contact_at?: string | null;
+}
+
+export type CaptureStatus = 'pending' | 'measuring' | 'completed' | 'failed' | 'expired' | 'cancelled';
+
+export interface CaptureRequest {
+  id: string;
+  device_id: string;
+  state: CaptureStatus;
+  created_at: string;
+  expires_at: string;
+  result_reading_id: number | null;
+  failure_reason: string | null;
+  reading: Reading | null;
 }
 
 export interface Profile {
@@ -109,6 +128,13 @@ export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Onboarding: undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
+  Tabling: NavigatorScreenParams<TablingTabParamList>;
+};
+
+export type TablingTabParamList = {
+  Activity: undefined;
+  Plants: NavigatorScreenParams<HomeStackParamList>;
+  Settings: undefined;
 };
 
 export type AuthStackParamList = {

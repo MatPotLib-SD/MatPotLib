@@ -28,6 +28,9 @@
 #include <ESPmDNS.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#ifndef TABLING_MODE
+#define TABLING_MODE 0
+#endif
 #include "secrets.h"   // API_URL, DEVICE_ID, DEVICE_TOKEN — git-ignored
 
 // ── Pins ─────────────────────────────────────────────────────────────────────
@@ -64,6 +67,16 @@ static const unsigned long POST_EVERY_MS   = 15UL * 60UL * 1000UL;
 static const uint16_t CONNECT_TIMEOUT_MS = 15000;
 static const uint16_t READ_TIMEOUT_MS    = 30000;
 static const int      POST_ATTEMPTS      = 2;
+static const uint16_t COMMAND_CONNECT_TIMEOUT_MS = 4000;
+static const uint16_t COMMAND_READ_TIMEOUT_MS = 8000;
+#if TABLING_MODE
+static const unsigned long POLL_EVERY_MS = 2000;
+static const unsigned long POLL_BACKOFF_MAX_MS = 30000;
+static const unsigned long COMMAND_RETRY_MS = 2000;
+static const int COMMAND_UPLOAD_ATTEMPTS = 3;
+static const uint16_t EVENT_SCHEDULED_CONNECT_TIMEOUT_MS = 2000;
+static const uint16_t EVENT_SCHEDULED_READ_TIMEOUT_MS = 3000;
+#endif
 
 // ── Globals ──────────────────────────────────────────────────────────────────
 Adafruit_BME280 bme;
@@ -82,10 +95,25 @@ struct Readings {
   int   soilRaw  = 0;     // raw ADC — exposed locally for calibration
   float moisture = NAN;   // calibrated percent — this is what the backend gets
   bool  valid    = false;
+  unsigned long acquiredAtMs = 0; // end of acquisition batch, monotonic
 } latest;
 
 unsigned long lastSample = 0;
 unsigned long lastPost   = 0;
+unsigned long nextReconnectAt = 0;
+#if TABLING_MODE
+unsigned long nextPollAt = 0;
+unsigned long pollDelayMs = POLL_EVERY_MS;
+struct PendingCapture {
+  String id;
+  Readings sample;
+  unsigned long deadlineMs = 0;
+  unsigned long nextAttemptMs = 0;
+  int uploadAttempts = 0;
+  bool sampled = false;
+  String failureReason;
+} pending;
+#endif
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 static void sortFloats(float* a, int n) {
@@ -130,7 +158,7 @@ static bool initBME280() {
 }
 
 // ── Sampling ─────────────────────────────────────────────────────────────────
-static void takeSample() {
+static bool takeSample(Readings& sample = latest) {
   float tempS[NUM_SAMPLES], humS[NUM_SAMPLES], presS[NUM_SAMPLES], luxS[NUM_SAMPLES];
   int   soilS[NUM_SAMPLES];
 
@@ -143,53 +171,65 @@ static void takeSample() {
     delay(SAMPLE_INTERVAL_MS);
   }
 
-  latest.tempC    = medianFloat(tempS, NUM_SAMPLES);
-  latest.humidity = medianFloat(humS,  NUM_SAMPLES);
-  latest.pressure = medianFloat(presS, NUM_SAMPLES);
-  latest.lux      = medianFloat(luxS,  NUM_SAMPLES);
-  latest.soilRaw  = medianInt(soilS,   NUM_SAMPLES);
+  sample.tempC    = medianFloat(tempS, NUM_SAMPLES);
+  sample.humidity = medianFloat(humS,  NUM_SAMPLES);
+  sample.pressure = medianFloat(presS, NUM_SAMPLES);
+  sample.lux      = medianFloat(luxS,  NUM_SAMPLES);
+  sample.soilRaw  = medianInt(soilS,   NUM_SAMPLES);
 
   // Map raw ADC to the 0-100 percent the backend and species ranges speak in.
-  latest.moisture = (float)(latest.soilRaw - DRY_RAW) * 100.0f /
-                    (float)(WET_RAW - DRY_RAW);
-  latest.moisture = clampf(latest.moisture, 0.0f, 100.0f);
+  if (WET_RAW != DRY_RAW) {
+    sample.moisture = (float)(sample.soilRaw - DRY_RAW) * 100.0f /
+                      (float)(WET_RAW - DRY_RAW);
+    sample.moisture = clampf(sample.moisture, 0.0f, 100.0f);
+  } else {
+    sample.moisture = NAN;
+  }
 
-  latest.valid = true;
+  sample.acquiredAtMs = millis();
+  sample.valid = bmeOk && bhOk && isfinite(sample.tempC) &&
+    isfinite(sample.humidity) && isfinite(sample.lux) &&
+    isfinite(sample.moisture) && sample.lux >= 0 &&
+    sample.soilRaw > 0 && sample.soilRaw < 4095;
+  if (!sample.valid) Serial.println("[sample] sensor acquisition failed; check sensors, wiring and calibration");
+  return sample.valid;
 }
 
 // ── Backend ingest ───────────────────────────────────────────────────────────
 // POST {API_URL}/sensors/readings  with header x-device-token.
 // Body must match backend/src/sensors/dto/create-reading.dto.ts exactly:
 // unknown keys are stripped and missing required keys are a 400.
-static void postReading() {
+enum PostResult { POST_OK, POST_RETRY, POST_REJECTED, POST_SENSOR_FAILURE };
+
+static PostResult postReading(const Readings& sample, const String& captureId = "") {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[post] skipped — no WiFi");
-    return;
+    Serial.println("[post] no WiFi");
+    return POST_RETRY;
   }
-  if (!latest.valid) {
-    Serial.println("[post] skipped — no sample yet");
-    return;
+  if (!sample.valid) {
+    Serial.println("[post] sensor acquisition failed");
+    return POST_SENSOR_FAILURE;
   }
 
   // Every field below is required and range-checked server-side. A failed
   // sensor yields NaN, which would serialize as invalid JSON and 400 — so
   // bail with a clear message instead of sending garbage.
-  if (isnan(latest.tempC) || isnan(latest.humidity) ||
-      isnan(latest.lux)   || isnan(latest.moisture)) {
-    Serial.println("[post] skipped — sensor read failed (NaN); check wiring");
-    return;
+  if (!isfinite(sample.tempC) || !isfinite(sample.humidity) ||
+      !isfinite(sample.lux) || !isfinite(sample.moisture)) {
+    Serial.println("[post] sensor read failed; check wiring");
+    return POST_SENSOR_FAILURE;
   }
-  if (latest.lux < 0) {
-    Serial.println("[post] skipped — BH1750 returned an error code");
-    return;
+  if (sample.lux < 0) {
+    Serial.println("[post] BH1750 returned an error code");
+    return POST_SENSOR_FAILURE;
   }
 
   // Clamp into the DTO's accepted ranges so a drifting sensor degrades into a
   // slightly wrong reading rather than a rejected one.
-  float tempC    = clampf(latest.tempC,    -40.0f, 85.0f);
-  float humidity = clampf(latest.humidity,   0.0f, 100.0f);
-  float lux      = clampf(latest.lux,        0.0f, 200000.0f);
-  float moisture = clampf(latest.moisture,   0.0f, 100.0f);
+  float tempC    = clampf(sample.tempC,    -40.0f, 85.0f);
+  float humidity = clampf(sample.humidity,   0.0f, 100.0f);
+  float lux      = clampf(sample.lux,        0.0f, 200000.0f);
+  float moisture = clampf(sample.moisture,   0.0f, 100.0f);
 
   JsonDocument doc;
   doc["device_id"] = DEVICE_ID;
@@ -197,41 +237,204 @@ static void postReading() {
   doc["temp_c"]    = serialized(String(tempC,    1));
   doc["humidity"]  = serialized(String(humidity, 1));
   doc["lux"]       = serialized(String(lux,      1));
+  if (captureId.length()) doc["capture_request_id"] = captureId;
 
-  String body;
-  serializeJson(doc, body);
-
-  for (int attempt = 1; attempt <= POST_ATTEMPTS; attempt++) {
+  int maxAttempts = captureId.length() ? 1 : POST_ATTEMPTS;
+  uint16_t connectTimeoutMs = captureId.length() ? COMMAND_CONNECT_TIMEOUT_MS : CONNECT_TIMEOUT_MS;
+  uint16_t readTimeoutMs = captureId.length() ? COMMAND_READ_TIMEOUT_MS : READ_TIMEOUT_MS;
+#if TABLING_MODE
+  if (!captureId.length()) {
+    // Scheduled uploads retain their 15-minute cadence, but must yield to
+    // event commands quickly even if the backend is slow or unavailable.
+    maxAttempts = 1;
+    connectTimeoutMs = EVENT_SCHEDULED_CONNECT_TIMEOUT_MS;
+    readTimeoutMs = EVENT_SCHEDULED_READ_TIMEOUT_MS;
+  }
+#endif
+  for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Only age changes between attempts. The values and request ID come from
+    // the same immutable sample even if a scheduled acquisition runs later.
+    doc["sample_age_ms"] = static_cast<uint32_t>(millis() - sample.acquiredAtMs);
+    String body;
+    serializeJson(doc, body);
     WiFiClientSecure client;
     client.setInsecure();  // MVP only; no cert validation. See DEPLOYMENT.md TODO.
 
     HTTPClient http;
-    http.setConnectTimeout(CONNECT_TIMEOUT_MS);
-    http.setTimeout(READ_TIMEOUT_MS);
+    http.setConnectTimeout(connectTimeoutMs);
+    http.setTimeout(readTimeoutMs);
     http.begin(client, String(API_URL) + "/sensors/readings");
     http.addHeader("Content-Type", "application/json");
     http.addHeader("x-device-token", DEVICE_TOKEN);
 
     int code = http.POST(body);
 
-    if (code == 200 || code == 201) {
+    if (code >= 200 && code < 300) {
       Serial.printf("[post] OK %d\n", code);
       http.end();
-      return;
+      return POST_OK;
     }
 
     // 401 = bad device token, 400 = body rejected. Neither is fixed by retrying.
-    if (code == 400 || code == 401) {
+    if (code == 400 || code == 401 || code == 403 || code == 404 || code == 409 || code == 410) {
       Serial.printf("[post] rejected %d — %s\n", code, http.getString().c_str());
       http.end();
-      return;
+      return POST_REJECTED;
     }
 
-    Serial.printf("[post] attempt %d/%d failed: %d\n", attempt, POST_ATTEMPTS, code);
+    Serial.printf("[post] attempt %d/%d failed: %d\n", attempt, maxAttempts, code);
     http.end();
-    if (attempt < POST_ATTEMPTS) delay(5000);  // likely a cold start; give it a moment
+    if (attempt < maxAttempts) delay(5000);  // scheduled cold start only
+  }
+  return POST_RETRY;
+}
+
+#if TABLING_MODE
+static bool due(unsigned long targetMs) {
+  return static_cast<long>(millis() - targetMs) >= 0;
+}
+
+static void clearCapture() {
+  pending = PendingCapture();
+  nextPollAt = millis() + POLL_EVERY_MS;
+}
+
+static void reportCaptureFailure() {
+  if (pending.id.length() == 0 || pending.failureReason.length() == 0) return;
+  if (!due(pending.nextAttemptMs)) return;
+  if (WiFi.status() != WL_CONNECTED) {
+    pending.nextAttemptMs = millis() + COMMAND_RETRY_MS;
+    if (due(pending.deadlineMs + 10000UL)) clearCapture();
+    return;
+  }
+
+  JsonDocument doc;
+  doc["device_id"] = DEVICE_ID;
+  doc["reason"] = pending.failureReason;
+  String body;
+  serializeJson(doc, body);
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  http.setConnectTimeout(COMMAND_CONNECT_TIMEOUT_MS);
+  http.setTimeout(COMMAND_READ_TIMEOUT_MS);
+  http.begin(client, String(API_URL) + "/devices/captures/" + pending.id + "/fail");
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-device-token", DEVICE_TOKEN);
+  int code = http.POST(body);
+  http.end();
+  if (code >= 200 && code < 300 || code == 400 || code == 403 ||
+      code == 404 || code == 409 || code == 410) {
+    Serial.printf("[capture] failure reported/terminal: %d\n", code);
+    clearCapture();
+  } else {
+    Serial.printf("[capture] failure report retry: %d\n", code);
+    pending.nextAttemptMs = millis() + COMMAND_RETRY_MS;
+    // Server expiry is authoritative. Avoid a permanent local lock if the
+    // network never recovers; a later poll cannot reissue an expired command.
+    if (due(pending.deadlineMs + 10000UL)) clearCapture();
   }
 }
+
+static void serviceCapture() {
+  if (pending.id.length() == 0) return;
+  if (pending.failureReason.length()) {
+    reportCaptureFailure();
+    return;
+  }
+  if (!pending.sampled) {
+    // A scheduled cache is never promoted into a commanded result.
+    if (due(pending.deadlineMs)) {
+      pending.failureReason = "capture_deadline_elapsed_before_sample";
+    } else {
+      Serial.printf("[capture] measuring %s\n", pending.id.c_str());
+      pending.sampled = true;
+      if (!takeSample(pending.sample)) pending.failureReason = "sensor_acquisition_failed";
+      pending.nextAttemptMs = millis();
+    }
+  }
+  if (pending.failureReason.length()) {
+    reportCaptureFailure();
+    return;
+  }
+  if (!due(pending.nextAttemptMs)) return;
+  if (pending.uploadAttempts >= COMMAND_UPLOAD_ATTEMPTS ||
+      due(pending.deadlineMs + COMMAND_READ_TIMEOUT_MS)) {
+    pending.failureReason = "capture_upload_failed";
+    reportCaptureFailure();
+    return;
+  }
+  ++pending.uploadAttempts;
+  PostResult result = postReading(pending.sample, pending.id);
+  if (result == POST_OK) {
+    Serial.printf("[capture] uploaded %s\n", pending.id.c_str());
+    clearCapture();
+  } else if (result == POST_REJECTED) {
+    // Cancellation, expiry, or disabled device is authoritative at the API.
+    Serial.printf("[capture] rejected %s\n", pending.id.c_str());
+    clearCapture();
+  } else if (result == POST_SENSOR_FAILURE) {
+    pending.failureReason = "sensor_acquisition_failed";
+    reportCaptureFailure();
+  } else {
+    pending.nextAttemptMs = millis() + COMMAND_RETRY_MS;
+  }
+}
+
+static void pollCapture() {
+  if (pending.id.length() || !due(nextPollAt)) return;
+  if (WiFi.status() != WL_CONNECTED) {
+    nextPollAt = millis() + pollDelayMs;
+    pollDelayMs = min(pollDelayMs * 2, POLL_BACKOFF_MAX_MS);
+    return;
+  }
+
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+  http.setConnectTimeout(COMMAND_CONNECT_TIMEOUT_MS);
+  http.setTimeout(COMMAND_READ_TIMEOUT_MS);
+  http.begin(client, String(API_URL) + "/devices/captures/poll");
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-device-token", DEVICE_TOKEN);
+  JsonDocument request;
+  request["device_id"] = DEVICE_ID;
+  String body;
+  serializeJson(request, body);
+  unsigned long pollStartedMs = millis();
+  int code = http.POST(body);
+  bool pollSucceeded = code >= 200 && code < 300;
+  String response = pollSucceeded ? http.getString() : "";
+  http.end();
+  if (!pollSucceeded) {
+    Serial.printf("[capture] poll failed %d\n", code);
+    nextPollAt = millis() + pollDelayMs;
+    pollDelayMs = min(pollDelayMs * 2, POLL_BACKOFF_MAX_MS);
+    return;
+  }
+
+  JsonDocument reply;
+  if (deserializeJson(reply, response)) {
+    Serial.println("[capture] malformed poll response");
+    nextPollAt = millis() + pollDelayMs;
+    pollDelayMs = min(pollDelayMs * 2, POLL_BACKOFF_MAX_MS);
+    return;
+  }
+  pollDelayMs = POLL_EVERY_MS;
+  nextPollAt = millis() + POLL_EVERY_MS;
+  const char* id = reply["capture_request_id"] | "";
+  if (!id[0]) return;
+  long remainingMs = reply["remaining_ms"] | 0L;
+  // The server computed remaining_ms before the response reached us. Subtract
+  // the entire observed request round trip as a conservative clock-free bound.
+  unsigned long transitMs = millis() - pollStartedMs;
+  if (remainingMs <= 0 || transitMs >= static_cast<unsigned long>(remainingMs)) return;
+  pending = PendingCapture();
+  pending.id = id;
+  pending.deadlineMs = millis() + static_cast<unsigned long>(remainingMs) - transitMs;
+  serviceCapture();
+}
+#endif
 
 // ── Local debug endpoints ────────────────────────────────────────────────────
 static void handleData() {
@@ -268,6 +471,7 @@ static void handleStatus() {
   doc["bme_address"]  = bmeAddress;
   doc["api_url"]      = API_URL;
   doc["last_post_s"]  = lastPost ? (millis() - lastPost) / 1000 : -1;
+  doc["tabling_mode"] = TABLING_MODE != 0;
 
   String json;
   serializeJson(doc, json);
@@ -326,18 +530,14 @@ static void checkResetButton() {
 
 // ── WiFi watchdog ────────────────────────────────────────────────────────────
 static void checkWiFiConnection() {
-  if (WiFi.status() == WL_CONNECTED) return;
-
-  Serial.println("WiFi lost — attempting reconnect...");
-  WiFi.reconnect();
-  unsigned long t = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t < 10000) {
-    delay(500);
-    Serial.print(".");
+  if (WiFi.status() == WL_CONNECTED) {
+    nextReconnectAt = millis();
+    return;
   }
-  Serial.println(WiFi.status() == WL_CONNECTED
-    ? "\nReconnected! IP: " + WiFi.localIP().toString()
-    : "\nReconnect failed. Will retry next loop.");
+  if (static_cast<long>(millis() - nextReconnectAt) < 0) return;
+  Serial.println("WiFi lost — attempting reconnect...");
+  WiFi.reconnect(); // asynchronous; keep the local server and timers responsive
+  nextReconnectAt = millis() + 10000UL;
 }
 
 // ── Setup ────────────────────────────────────────────────────────────────────
@@ -385,12 +585,27 @@ void setup() {
   server.begin();
   Serial.println("Local debug server on :80");
 
+#if TABLING_MODE
+  // On a reboot, check for an already issued command before the boot-time
+  // background sample/post can block it.
+  nextPollAt = millis();
+  pollCapture();
+  if (pending.id.length()) {
+    lastSample = millis();
+    lastPost = millis();
+    return;
+  }
+#endif
+
   // First reading + first post immediately, so a fresh flash proves the whole
   // path end to end without waiting 15 minutes.
   takeSample();
-  postReading();
+  postReading(latest);
   lastSample = millis();
   lastPost   = millis();
+#if TABLING_MODE
+  nextPollAt = millis() + POLL_EVERY_MS;
+#endif
 }
 
 // ── Loop ─────────────────────────────────────────────────────────────────────
@@ -399,6 +614,14 @@ void loop() {
   checkResetButton();
   checkWiFiConnection();
   updateLED();
+
+#if TABLING_MODE
+  // Check for work before scheduled sampling/upload. A pending capture owns
+  // its sample until the backend accepts or rejects it.
+  serviceCapture();
+  pollCapture();
+  if (pending.id.length()) return;
+#endif
 
   if (millis() - lastSample >= SAMPLE_EVERY_MS) {
     lastSample = millis();
@@ -409,6 +632,6 @@ void loop() {
 
   if (millis() - lastPost >= POST_EVERY_MS) {
     lastPost = millis();
-    postReading();
+    postReading(latest);
   }
 }

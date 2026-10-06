@@ -1,4 +1,4 @@
-import { IsUUID, IsNumber, Min, Max, IsOptional } from 'class-validator';
+import { IsUUID, IsNumber, IsInt, Min, Max, IsOptional } from 'class-validator';
 
 export class CreateReadingDto {
   @IsUUID() device_id: string;
@@ -7,4 +7,6 @@ export class CreateReadingDto {
   @IsNumber() @Min(0) @Max(100) humidity: number;
   @IsNumber() @Min(0) @Max(200000) lux: number;
   @IsOptional() @IsNumber() battery_pct?: number;
+  @IsOptional() @IsUUID() capture_request_id?: string;
+  @IsOptional() @IsInt() @Min(0) @Max(300000) sample_age_ms?: number;
 }

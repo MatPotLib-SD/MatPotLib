@@ -106,6 +106,7 @@ export class AlertsService {
       .select('*')
       .eq('id', deviceId)
       .maybeSingle();
+    if (device?.tabling_enabled) return;
     if (!device?.owner_user_id) return; // unclaimed pot → nobody to alert
 
     const { data: plants } = await db

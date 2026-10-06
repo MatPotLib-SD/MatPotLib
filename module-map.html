@@ -239,13 +239,13 @@
   <header>
     <div class="eyebrow">MatPotLib &middot; Smart Plant Pot &middot; SD1 MVP</div>
     <h1>How the repo is divided</h1>
-    <p class="lede">Five code modules, each built against a contract rather than against each other. <strong>The seams are the design</strong> &mdash; a pot that only knows one endpoint, an app that only knows REST, and a backend that is the sole holder of the database&rsquo;s service-role key.</p>
+    <p class="lede">Five code modules connected by explicit contracts: the pot uses authenticated outbound HTTPS, the app uses REST, and the backend holds the database&rsquo;s service-role key. Tabling adds a durable command path alongside scheduled readings.</p>
     <div class="stats">
       <div class="stat"><b>5</b><span>code modules</span></div>
       <div class="stat"><b>3</b><span>languages</span></div>
       <div class="stat"><b>2</b><span>auth contracts</span></div>
       <div class="stat"><b>9</b><span>backend modules</span></div>
-      <div class="stat"><b>8</b><span>postgres tables</span></div>
+      <div class="stat"><b>9</b><span>postgres tables</span></div>
     </div>
   </header>
 
@@ -562,6 +562,22 @@
         </ul>
       </div>
     </div>
+  </section>
+
+  <section>
+    <h2>Tabling capture path</h2>
+    <p class="prose">The app flag, firmware build, and server-controlled device eligibility are independent. Ordinary builds retain scheduled uploads and ordinary navigation. Event devices suppress normal alert notifications and use light and soil sample moisture for activity feedback.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Step</th><th>Contract</th><th>Guarantee</th></tr></thead>
+      <tbody>
+        <tr><td>App requests capture</td><td>POST /devices/:deviceId/captures</td><td>Staff JWT, ownership, eligibility and idempotency key; one active request per device.</td></tr>
+        <tr><td>Board checks for work</td><td>POST /devices/captures/poll</td><td>Device token, remaining lifetime, and separate command-contact timestamp.</td></tr>
+        <tr><td>Board acquires a new batch</td><td>POST /sensors/readings with capture_request_id and sample_age_ms</td><td>Buffered retries preserve the exact sample; database insertion and completion are atomic.</td></tr>
+        <tr><td>App reads its result</td><td>GET /devices/:deviceId/captures/:captureId</td><td>Exact result immediately updates the matching group; Current is ordered by acquisition time and reading ID.</td></tr>
+        <tr><td>Facilitator resets</td><td>POST cancel-pending by creation key; inspect and cancel active work</td><td>A cancelled record blocks even a delayed create. Obsolete work reaches a terminal state before preparation. History remains stored.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Before and Now change only from group captures; scheduled readings update Current. Preparation readings verify the replaceable soil sample and adjustable lamp. See <a href="docs/TABLING_RUNBOOK.md">the tabling runbook</a> for deployment and physical rehearsal.</p>
   </section>
 
   <section>

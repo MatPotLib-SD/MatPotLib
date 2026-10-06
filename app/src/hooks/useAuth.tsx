@@ -131,6 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // On sign-in: load profile + register push token once per app session.
   useEffect(() => {
     if (!session) {
+      // Clear profile state when the external authentication session ends.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProfile(null);
       setProfileLoaded(false);
       setProfileError(false);

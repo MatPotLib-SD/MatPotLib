@@ -73,7 +73,7 @@ Everything below is a step a human must perform; nothing here is automated. Plac
 
 ## 4. GitHub repo secrets (CI/CD deploy)
 
-`deploy.yml` pushes a new image and updates the Container App on every push to `main` touching `backend/`.
+`deploy.yml` builds and pushes a new image on relevant `main` changes or manual invocation. Container App rollout is manual; use the actual image tag and selected deployment target. The workflow currently uses ACR credentials, not the historical service-principal setup below.
 
 1. Create a service principal with access to the resource group:
    ```bash
@@ -141,4 +141,10 @@ Open the app with `EXPO_PUBLIC_DEMO_MODE=true` → auto-login as the demo user, 
 - [ ] A second out-of-range reading within 2h does NOT create a duplicate alert (cooldown).
 - [ ] A return to range creates one "recovered" info alert.
 - [ ] User A cannot read User B's plants/readings/alerts (try a second account).
-- [ ] CI green on PR; push to `main` deploys the backend automatically.
+- [ ] CI green on PR; image build succeeds and the selected image is rolled out manually.
+
+## 10. Tabling event build
+
+Follow [docs/TABLING_RUNBOOK.md](docs/TABLING_RUNBOOK.md) for the additive migration, compatible backend rollout, trusted per-device enablement, `arduino_nano_esp32_tabling` firmware, and the `tabling` Expo/EAS profile. Keep simulator data on a distinct test device. The app launcher alone cannot make ordinary firmware accept captures.
+
+Software verification and a physical rehearsal are separate gates. Before running the event, identify the staff/device/deployment target, calibrate the actual probe and replaceable soil samples, provision the physical phone/tablet, and rehearse several full group and failure/reset cycles. Record actual latency; restore device eligibility, firmware, and hosting settings after the event.

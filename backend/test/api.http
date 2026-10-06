@@ -11,6 +11,8 @@
 # Filled after creating a plant / picking a species
 @plantId = REPLACE_WITH_PLANT_UUID
 @speciesId = REPLACE_WITH_SPECIES_UUID
+@captureId = REPLACE_WITH_CAPTURE_UUID
+@idempotencyKey = REPLACE_WITH_NEW_UUID_PER_ATTEMPT
 
 ### Health check (no auth)
 GET {{baseUrl}}/health
@@ -63,6 +65,57 @@ Authorization: Bearer {{jwt}}
 ### Unlink (unclaim) a device I own
 DELETE {{baseUrl}}/devices/{{deviceId}}
 Authorization: Bearer {{jwt}}
+
+### ---------------- Tabling captures ----------------
+# Use only a test device or the prepared event device during rehearsal.
+# The device must be enabled by trusted administration (tabling_enabled=true).
+
+### Read active command without creating another capture
+GET {{baseUrl}}/devices/{{deviceId}}/active-capture
+Authorization: Bearer {{jwt}}
+
+### Request a new capture (reuse the same key only for a retry of this attempt)
+POST {{baseUrl}}/devices/{{deviceId}}/captures
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{"idempotency_key":"{{idempotencyKey}}"}
+
+### Firmware poll; response includes capture_request_id and remaining_ms
+POST {{baseUrl}}/devices/captures/poll
+x-device-token: {{deviceToken}}
+Content-Type: application/json
+
+{"device_id":"{{deviceId}}"}
+
+### Firmware upload of a newly acquired capture; scheduled uploads omit capture_request_id
+POST {{baseUrl}}/sensors/readings
+x-device-token: {{deviceToken}}
+Content-Type: application/json
+
+{"device_id":"{{deviceId}}","capture_request_id":"{{captureId}}","sample_age_ms":2500,"moisture":42.5,"temp_c":21.3,"humidity":55,"lux":1200}
+
+### Inspect exact result reading and terminal state
+GET {{baseUrl}}/devices/{{deviceId}}/captures/{{captureId}}
+Authorization: Bearer {{jwt}}
+
+### Cancel obsolete work before next group
+POST {{baseUrl}}/devices/{{deviceId}}/captures/{{captureId}}/cancel
+Authorization: Bearer {{jwt}}
+
+### Cancel an uncertain create using its original idempotency key
+POST {{baseUrl}}/devices/{{deviceId}}/captures/cancel-pending
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{"idempotency_key":"{{idempotencyKey}}"}
+
+### Firmware explicit acquisition failure
+POST {{baseUrl}}/devices/captures/{{captureId}}/fail
+x-device-token: {{deviceToken}}
+Content-Type: application/json
+
+{"device_id":"{{deviceId}}","reason":"Sensor acquisition failed"}
 
 ### ---------------- Species ----------------
 

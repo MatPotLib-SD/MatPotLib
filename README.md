@@ -1,8 +1,29 @@
+## Tabling activity
+
+The capture → physical change → capture activity is configured separately from demo login. Follow [the tabling runbook](docs/TABLING_RUNBOOK.md) for database/backend rollout, event-device enablement, firmware flashing, app builds, group reset, and the required hardware rehearsal. Local app command: `cd app` then `npm run tabling`; Android build: `eas build --profile tabling --platform android`. These commands require the matching backend and board setup.
+
 ## Run Instructions
 note: upon running an inactive backend, the backend takes ~>10 seconds to "wake up"
 
 
 ### Frontend
+Reusable Docker setup (Docker Desktop in Linux container mode; no host Node/npm required):
+
+1. Configure `app/.env` with the hosted backend URL and Supabase public settings.
+2. From the repository root, start the tabling app:
+
+   ```powershell
+   docker compose up --build --no-log-prefix tabling
+   ```
+
+3. Scan the terminal QR code with a compatible Expo Go installation. Keep the terminal running; Ctrl+C stops the server.
+
+For the normal app, use `docker compose up --build --no-log-prefix app`. Start one mode at a time. After the first build, omit `--build` to reuse the image; include it after changing source or dependencies. Dependencies are installed during image build and reused on subsequent starts. Source is copied into the image, so editing local files requires rebuilding. `app/.env` is passed at runtime and excluded from the image; after changing it, run Compose again to recreate the container.
+
+The tunnel connects the phone to Expo only. Use a phone-accessible backend URL, such as the Azure URL; `localhost` on the phone refers to the phone. Backend deployment and database migration remain separate. To stop/remove these containers, run `docker compose --profile tabling down`.
+
+Expo credentials persist in a Docker volume. If Expo Go requests matching accounts (including physical iOS), stop the server, run `docker compose run --rm app npx expo login`, then start it again and sign in to the same account in Expo Go.
+
 BUILD: 
 *for a demo, just have a memeber who has the frontend running (npx expo start) and demo-er with Expo Go app installed scan the QR code.
 

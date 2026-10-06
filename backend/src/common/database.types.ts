@@ -21,6 +21,8 @@ export type DeviceRow = {
   firmware_version: string | null;
   status: string;
   last_seen_at: string | null;
+  tabling_enabled: boolean;
+  last_command_contact_at: string | null;
   claim_code: string | null;
   created_at: string;
 };
@@ -64,11 +66,33 @@ export type SensorReadingRow = {
   id: number;
   device_id: string;
   ts: string;
+  captured_at: string;
+  time_source: 'estimated' | 'receipt';
+  sample_age_ms: number | null;
+  capture_request_id: string | null;
   moisture: number | null;
   temp_c: number | null;
   humidity: number | null;
   lux: number | null;
   battery_pct: number | null;
+};
+
+export type CaptureRequestRow = {
+  id: string;
+  device_id: string;
+  requester_user_id: string;
+  idempotency_key: string;
+  state:
+    | 'pending'
+    | 'measuring'
+    | 'completed'
+    | 'failed'
+    | 'expired'
+    | 'cancelled';
+  created_at: string;
+  expires_at: string;
+  result_reading_id: number | null;
+  failure_reason: string | null;
 };
 
 export type AlertRow = {
@@ -109,11 +133,67 @@ export type Database = {
       plant_species: TableDef<PlantSpeciesRow>;
       user_plants: TableDef<UserPlantRow>;
       sensor_readings: TableDef<SensorReadingRow>;
+      capture_requests: TableDef<CaptureRequestRow>;
       alerts: TableDef<AlertRow>;
       push_tokens: TableDef<PushTokenRow>;
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      tabling_create_capture: {
+        Args: { p_device_id: string; p_user_id: string; p_key: string };
+        Returns: Record<string, unknown>;
+      };
+      tabling_cancel_pending_capture: {
+        Args: { p_device_id: string; p_user_id: string; p_key: string };
+        Returns: Record<string, unknown>;
+      };
+      tabling_active_capture: {
+        Args: { p_device_id: string; p_user_id: string };
+        Returns: Record<string, unknown> | null;
+      };
+      tabling_get_capture: {
+        Args: { p_device_id: string; p_user_id: string; p_capture_id: string };
+        Returns: Record<string, unknown>;
+      };
+      tabling_cancel_capture: {
+        Args: { p_device_id: string; p_user_id: string; p_capture_id: string };
+        Returns: Record<string, unknown>;
+      };
+      tabling_poll_capture: {
+        Args: { p_device_id: string };
+        Returns: Record<string, unknown>;
+      };
+      tabling_fail_capture: {
+        Args: { p_device_id: string; p_capture_id: string; p_reason: string };
+        Returns: Record<string, unknown>;
+      };
+      tabling_owned_latest: {
+        Args: { p_device_id: string; p_user_id: string };
+        Returns: Record<string, unknown> | null;
+      };
+      tabling_owned_history: {
+        Args: {
+          p_device_id: string;
+          p_user_id: string;
+          p_from: string | null;
+          p_to: string | null;
+        };
+        Returns: Record<string, unknown>[];
+      };
+      tabling_ingest_reading: {
+        Args: {
+          p_device_id: string;
+          p_moisture: number;
+          p_temp_c: number;
+          p_humidity: number;
+          p_lux: number;
+          p_battery_pct?: number | null;
+          p_sample_age_ms?: number | null;
+          p_capture_request_id?: string | null;
+        };
+        Returns: Record<string, unknown>;
+      };
+    };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
   };

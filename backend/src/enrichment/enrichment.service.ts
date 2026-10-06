@@ -48,26 +48,23 @@ export class EnrichmentService {
     }
 
     try {
-      const response = await fetch(
-        'https://api.openai.com/v1/responses',
-        {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json',
-            authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            tools: [{ type: 'web_search' }],
-            tool_choice: 'required',
-            text: { format: { type: 'json_object' } },
-            input: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: `Plant: ${query}` },
-            ],
-          }),
+      const response = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${apiKey}`,
         },
-      );
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          tools: [{ type: 'web_search' }],
+          tool_choice: 'required',
+          text: { format: { type: 'json_object' } },
+          input: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: `Plant: ${query}` },
+          ],
+        }),
+      });
       if (!response.ok) {
         this.logger.warn(`OpenAI request failed with ${response.status}`);
         return null;

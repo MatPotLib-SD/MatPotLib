@@ -56,6 +56,8 @@ export function SettingsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
+    // Sync the editable field after a fresh external profile load.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayName(profile?.display_name ?? '');
   }, [profile?.display_name]);
 

@@ -16,9 +16,10 @@
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| devices | Physical sensor devices | id, owner_user_id, status, firmware_version, claim_code, last_seen_at |
+| devices | Physical sensor devices and event eligibility | id, owner_user_id, status, firmware_version, claim_code, last_seen_at, tabling_enabled, last_command_contact_at |
 | device_secrets | Device auth secrets | device_id, secret_hash |
-| sensor_readings | Time-series sensor data | device_id, ts, moisture, temp_c, humidity, lux, battery_pct |
+| sensor_readings | Time-series sensor data | device_id, ts (receipt), captured_at (effective acquisition), time_source, sample_age_ms, capture_request_id, moisture, temp_c, humidity, lux, battery_pct |
+| capture_requests | Durable event capture commands | id, device_id, requester_user_id, idempotency_key, state, created_at, expires_at, result_reading_id, failure_reason |
 | user_plants | User's tracked plants | id, owner_user_id, device_id, plant_species_id, nickname, notes |
 | plant_species | Plant reference data | common_name, scientific_name, ideal ranges (moisture/lux/temp/humidity) |
 | profiles | User profile info | user_id, display_name, experience_level, goals, plant_types |
@@ -51,6 +52,17 @@
 | devices | last_seen_at | timestamp with time zone | Last check-in time |
 | devices | claim_code | text | Code used to claim/pair device |
 | devices | created_at | timestamp with time zone | Device registration time |
+| devices | tabling_enabled | boolean | Server-controlled capture eligibility and alert suppression; defaults false |
+| devices | last_command_contact_at | timestamp with time zone | Last authenticated command poll; does not change reading freshness |
+| capture_requests | id | uuid | Capture request ID |
+| capture_requests | device_id | uuid | Commanded device |
+| capture_requests | requester_user_id | uuid | Requesting owner |
+| capture_requests | idempotency_key | text | Unique per device and requester |
+| capture_requests | state | text | pending, measuring, completed, failed, expired, cancelled |
+| capture_requests | created_at | timestamp with time zone | Request creation time |
+| capture_requests | expires_at | timestamp with time zone | Command deadline |
+| capture_requests | result_reading_id | bigint | Exact completed reading |
+| capture_requests | failure_reason | text | Terminal failure or cancellation detail |
 | plant_species | id | uuid | Species ID |
 | plant_species | common_name | text | Common plant name |
 | plant_species | scientific_name | text | Scientific/botanical name |
@@ -81,6 +93,10 @@
 | sensor_readings | id | bigint | Reading ID |
 | sensor_readings | device_id | uuid | Source device |
 | sensor_readings | ts | timestamp with time zone | Reading timestamp |
+| sensor_readings | captured_at | timestamp with time zone | Effective acquisition time; legacy rows backfilled from ts |
+| sensor_readings | time_source | text | estimated from sample age or receipt fallback |
+| sensor_readings | sample_age_ms | integer | Device-reported sample age at transmission |
+| sensor_readings | capture_request_id | uuid | Unique commanded capture reference; null for scheduled uploads |
 | sensor_readings | moisture | numeric | Soil moisture reading |
 | sensor_readings | temp_c | numeric | Temperature (°C) |
 | sensor_readings | humidity | numeric | Humidity reading |
@@ -94,3 +110,5 @@
 | user_plants | user_plant_image_path | text | Path to plant photo |
 | user_plants | notes | text | User notes |
 | user_plants | created_at | timestamp with time zone | Record creation time |
+
+Event capture functions run only through the backend service role. `tabling_cancel_pending_capture` atomically cancels a known key or stores a cancelled tombstone for an uncertain create; later creation with that key returns the tombstone. `tabling_owned_latest` and `tabling_owned_history` lock the owned device row while reading, preventing an ownership transfer from exposing a new owner's data between separate checks. Commanded ingestion requires `sample_age_ms`; legacy scheduled uploads may omit it. Ingestion returns an alert-suppression decision taken from device eligibility in the same transaction.

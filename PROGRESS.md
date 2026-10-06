@@ -1,5 +1,14 @@
 # Progress
 
+## Tabling implementation — 2026-09-24
+
+- Completed **3 implementation/fix + skeptical review loops** with Sol agents assigned to app, backend/database, and firmware/simulator work; cross-area code, workflow, and UI/UX findings returned to the orchestrator and drove the next fixes.
+- Added explicit app/firmware/server device modes, durable command captures and key-based cancellation, acquisition-time ordering, event alert suppression, facilitator preparation/reset, Current and fixed Before/latest Now, and separate command simulation.
+- Verified: backend full lint/build, **14 unit + 8 HTTP e2e tests**; app lint/typecheck and **23 tests** (7 models + 16 mounted hook scenarios); actual isolated PostgreSQL lifecycle/RLS and competing-transaction tests; simulator typecheck + local protocol smoke test; **both firmware environments** compiled with placeholder credentials; final ordinary and event Expo bundles exported using placeholder public configuration, with embedded tabling false/true verified and cache cleared between modes.
+- Final firmware source and compiled temporary copy matched SHA-256 `0BE95A8ED4D7520D7F0BE4487A410FD150F49076DE2C2C1DC8C69A3A1B5D5F1F`. No board was flashed. Initial Windows compiler path-length failure was resolved using a temporary short path; both final builds passed.
+- Remaining: chosen deployment/account/device/platform, migration/backend rollout, server enablement, real firmware flash, EAS project/signing/tablet setup if applicable, sensor/sample calibration, actual-screen visual check, venue-network and multi-group hardware rehearsal. Browser automation was unavailable, so UI review is source-based plus mounted state tests, not a visual/device pass.
+- See [docs/TABLING_RUNBOOK.md](docs/TABLING_RUNBOOK.md) for run commands and [docs/TABLING_VERIFICATION.md](docs/TABLING_VERIFICATION.md) for loop/test details. Requirements/deviations are recorded in [docs/TABLING_PLAN.md](docs/TABLING_PLAN.md).
+
 ## Build order (Section 12)
 - [x] 1. Repo scaffold, .env.example, README
 - [x] 2. DB migrations + RLS + import_miflora + enrichment

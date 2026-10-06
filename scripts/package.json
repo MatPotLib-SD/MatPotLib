@@ -5,6 +5,8 @@
   "description": "Test-harness scripts: device simulator, demo seed, alert trigger",
   "scripts": {
     "sim": "tsx sim_device.ts",
+    "sim:tabling": "tsx sim_capture.ts --commands",
+    "test:sim:tabling": "node --test sim_capture.test.mjs",
     "seed:demo": "tsx seed_demo.ts",
     "trigger:alert": "tsx trigger_alert.ts"
   },

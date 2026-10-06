@@ -29,6 +29,8 @@ describe('Sensor ingest (e2e)', () => {
         name: 'Pot 1',
         status: 'offline',
         last_seen_at: null,
+        tabling_enabled: false,
+        last_command_contact_at: null,
         claim_code: 'CLAIMED',
       },
     ]);
@@ -112,7 +114,14 @@ describe('Sensor ingest (e2e)', () => {
         lux: 5000,
       })
       .expect(201)
-      .expect({ ok: true });
+      .expect((response) => {
+        const body = response.body as {
+          ok: boolean;
+          reading: { device_id: string };
+        };
+        expect(body.ok).toBe(true);
+        expect(body.reading.device_id).toBe(DEVICE_ID);
+      });
 
     // Reading stored
     expect(db.tables.sensor_readings).toHaveLength(1);
@@ -150,6 +159,26 @@ describe('Sensor ingest (e2e)', () => {
       .expect(401);
 
     expect(db.tables.sensor_readings).toHaveLength(0);
+  });
+
+  it('keeps event readings while suppressing normal alerts', async () => {
+    db.tables.devices[0].tabling_enabled = true;
+    await request(app.getHttpServer())
+      .post('/sensors/readings')
+      .set('x-device-token', DEVICE_TOKEN)
+      .send({
+        device_id: DEVICE_ID,
+        moisture: 5,
+        temp_c: 22,
+        humidity: 50,
+        lux: 5000,
+        sample_age_ms: 1500,
+      })
+      .expect(201);
+    expect(db.tables.sensor_readings).toHaveLength(1);
+    expect(db.tables.sensor_readings[0].time_source).toBe('estimated');
+    expect(db.tables.alerts).toHaveLength(0);
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it('rejects an out-of-range payload with 400', async () => {

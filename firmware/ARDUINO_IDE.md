@@ -6,13 +6,30 @@ equivalent path in Arduino IDE 2.x.
 Goal: get the pot posting readings to the deployed backend, then calibrate
 the soil probe.
 
+## Normal and tabling builds
+
+The source defaults to normal mode (`TABLING_MODE=0`): it samples about every
+30 seconds, uploads every 15 minutes, and does not poll for capture commands.
+PlatformIO builds the normal mode with `pio run -e arduino_nano_esp32` and
+the tabling mode with `pio run -e arduino_nano_esp32_tabling`. An intentional
+flash of the event build uses `pio run -e arduino_nano_esp32_tabling -t upload`.
+Do not flash until the target device, backend, and rehearsal setup are known.
+
+For Arduino IDE, add `#define TABLING_MODE 1` **before all includes** in the
+copied `MatPotLib.ino` sketch to compile the tabling equivalent; remove it or
+set it to `0` for the normal equivalent. Tabling firmware polls the backend
+roughly every two seconds for an enabled device's capture request. A request
+triggers a fresh sensor batch and immediate upload tagged with its request ID.
+The regular scheduled uploads continue. Verify the build and full capture
+flow on actual hardware before using it at the event.
+
 ---
 
 ## What you should have been given
 
 | Item | Notes |
 |---|---|
-| `main.cpp` | the firmware — 414 lines |
+| `main.cpp` | the firmware source |
 | `secrets.h` | **sent separately** — it is git-ignored and will NOT be in the repo |
 | this file | |
 

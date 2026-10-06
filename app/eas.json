@@ -4,6 +4,7 @@
   },
   "build": {
     "development": {
+      "env": { "EXPO_PUBLIC_TABLING_MODE": "false" },
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -11,9 +12,18 @@
       }
     },
     "preview": {
+      "env": { "EXPO_PUBLIC_TABLING_MODE": "false" },
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      }
+    },
+    "tabling": {
+      "extends": "preview",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_TABLING_MODE": "true",
+        "EXPO_PUBLIC_DEMO_MODE": "false"
       }
     }
   },

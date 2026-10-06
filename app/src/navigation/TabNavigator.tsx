@@ -16,7 +16,7 @@ const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 
 // Screens render their own large mockup-style titles; native headers are
 // kept only where a back button is needed (PlantData, AddEditPlant).
-function HomeStackNavigator() {
+export function HomeStackNavigator() {
   return (
     <HomeStack.Navigator
       screenOptions={{

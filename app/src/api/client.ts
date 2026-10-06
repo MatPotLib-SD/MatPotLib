@@ -12,6 +12,7 @@ import type {
   ProfileUpdate,
   Reading,
   SpeciesRow,
+  CaptureRequest,
 } from '../types';
 
 const BACKEND_URL = (process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://localhost:3000').replace(
@@ -162,6 +163,34 @@ export function listDevices(): Promise<Device[]> {
 /** DELETE /devices/:id — unlink a device. */
 export function deleteDevice(id: string): Promise<void> {
   return request<void>(`/devices/${id}`, { method: 'DELETE' });
+}
+
+/** All capture routes require the signed-in user to own the enabled device. */
+export function createCapture(deviceId: string, idempotencyKey: string): Promise<CaptureRequest> {
+  return request<CaptureRequest>(`/devices/${deviceId}/captures`, {
+    method: 'POST',
+    body: JSON.stringify({ idempotency_key: idempotencyKey }),
+  });
+}
+
+export function getCapture(deviceId: string, captureId: string): Promise<CaptureRequest> {
+  return request<CaptureRequest>(`/devices/${deviceId}/captures/${captureId}`);
+}
+
+export function getActiveCapture(deviceId: string): Promise<CaptureRequest | null> {
+  return request<CaptureRequest | null>(`/devices/${deviceId}/active-capture`).then((r) => r ?? null);
+}
+
+export function cancelCapture(deviceId: string, captureId: string): Promise<CaptureRequest> {
+  return request<CaptureRequest>(`/devices/${deviceId}/captures/${captureId}/cancel`, { method: 'POST' });
+}
+
+/** Atomically cancel this key, including a POST whose response was lost. */
+export function cancelPendingCapture(deviceId: string, idempotencyKey: string): Promise<CaptureRequest> {
+  return request<CaptureRequest>(`/devices/${deviceId}/captures/cancel-pending`, {
+    method: 'POST',
+    body: JSON.stringify({ idempotency_key: idempotencyKey }),
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,9 @@
+node_modules
+.expo
+.expo-shared
+.env
+.env.*
+dist
+web-build
+*.tsbuildinfo
+npm-debug.log*

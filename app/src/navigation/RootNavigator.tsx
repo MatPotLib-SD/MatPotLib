@@ -3,6 +3,8 @@ import React from 'react';
 
 import { AuthNavigator } from './AuthNavigator';
 import { TabNavigator } from './TabNavigator';
+import { TablingNavigator } from './TablingNavigator';
+import { TABLING_MODE } from '../constants/mode';
 import { LoadingView } from '../components/ui';
 import { useAuth } from '../hooks/useAuth';
 import { OnboardingScreen } from '../screens/onboarding/OnboardingScreen';
@@ -35,7 +37,9 @@ export function RootNavigator() {
       ) : needsOnboarding ? (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       ) : (
-        <Stack.Screen name="Main" component={TabNavigator} />
+        TABLING_MODE
+          ? <Stack.Screen name="Tabling" component={TablingNavigator} />
+          : <Stack.Screen name="Main" component={TabNavigator} />
       )}
     </Stack.Navigator>
   );
