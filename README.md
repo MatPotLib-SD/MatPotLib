@@ -3,6 +3,14 @@ note: upon running an inactive backend, the backend takes ~>10 seconds to "wake 
 
 
 ### Frontend
+From the repository root, explicitly select the Expo project:
+
+```powershell
+npm --prefix app start -- --clear --tunnel --go
+```
+
+The app uses `app/index.js` to register `app/App.tsx`. Stop the previous server and scan the new QR code after restarting.
+
 BUILD: 
 *for a demo, just have a memeber who has the frontend running (npx expo start) and demo-er with Expo Go app installed scan the QR code.
 
@@ -117,7 +125,7 @@ npx expo start
 
 ## Dataset attribution
 
-Species ideal ranges are seeded from **MiFloraDB** (<https://github.com/khronimo/MiFloraDB>), file `PlantDB_5335_U0.csv`, 5,335 species, licensed **GPL-3.0**. Missing values are optionally filled by LLM enrichment (`source` column distinguishes `MiFloraDB` vs `llm`).
+Species ideal ranges are seeded from **MiFloraDB** (<https://github.com/khronimo/MiFloraDB>), file `PlantDB_5335_U0.csv` (5,534 species despite the filename), licensed **GPL-3.0**. Missing values are optionally filled by LLM enrichment (`source` column distinguishes `MiFloraDB` vs `llm`).
 
 ## Deployment
 

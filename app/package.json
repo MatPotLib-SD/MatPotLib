@@ -1,7 +1,7 @@
 {
   "name": "matpotlib-app",
   "version": "1.0.0",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "index.js",
   "private": true,
   "scripts": {
     "start": "expo start",
@@ -20,6 +20,7 @@
     "expo": "^57.0.0",
     "expo-constants": "~57.0.17",
     "expo-device": "~57.0.1",
+    "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.9",
     "expo-notifications": "~57.0.16",
     "expo-status-bar": "~57.0.1",

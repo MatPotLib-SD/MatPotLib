@@ -41,7 +41,7 @@ npm run import
 
 What the import does:
 
-1. Parses `PlantDB_5335_U0.csv` (5,335 species) and logs the detected headers.
+1. Parses `PlantDB_5335_U0.csv` (5,534 species despite the filename) and logs the detected headers.
 2. Maps CSV columns to `plant_species`:
    `pid` → `scientific_name`, `display_pid` → `common_name`,
    `alias` → `aliases[]`, `min/max_soil_moist` → `ideal_moisture_min/max`,
@@ -110,7 +110,7 @@ user already owns one).
 
 The `plant_species` seed data is derived from **MiFloraDB**
 (<https://github.com/khronimo/MiFloraDB>, file `PlantDB_5335_U0.csv`,
-5,335 species), licensed under **GPL-3.0**. This attribution must also appear
+5,534 species), licensed under **GPL-3.0**. This attribution must also appear
 in the project report. Rows added or completed by the LLM enrichment pass are
 marked by `source = 'MiFloraDB'` with filled cells (seed-time enrichment) or
 `source = 'llm'` (runtime fallback rows created by the backend).

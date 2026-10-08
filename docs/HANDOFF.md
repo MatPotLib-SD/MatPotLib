@@ -53,7 +53,7 @@ Database:
 - Server stamps `sensor_readings.ts = now()`. ESP32 sends no timestamp (no NTP).
 
 Dataset (reference ideal ranges):
-- Base: MiFloraDB, https://github.com/khronimo/MiFloraDB, file `PlantDB_5335_U0.csv`, 5335 species. License GPL-3.0, attribute in repo + report.
+- Base: MiFloraDB, https://github.com/khronimo/MiFloraDB, file `PlantDB_5335_U0.csv`, 5,534 species (despite the filename). License GPL-3.0, attribute in repo + report.
 - Import once into `plant_species` via `db/import_miflora.ts`.
 - LLM enrichment: fills only missing cells during seed (one-time), and runtime fallback when a user selects a species absent from the table. OpenAI key in `.env`. If key absent, skip enrichment gracefully and log.
 - Actual CSV headers (verified): `pid,display_pid,alias,image,floral_language,origin,production,category,blooming,color,size,soil,sunlight,watering,fertilization,pruning,max_light_mmol,min_light_mmol,max_light_lux,min_light_lux,max_temp,min_temp,max_env_humid,min_env_humid,max_soil_moist,min_soil_moist,max_soil_ec,min_soil_ec`. CSV lives at `db/PlantDB_5335_U0.csv`.
