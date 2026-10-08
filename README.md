@@ -20,6 +20,14 @@ Reusable Docker setup (Docker Desktop in Linux container mode; no host Node/npm 
 
 For the normal app, use `docker compose up --build --no-log-prefix app`. Start one mode at a time. After the first build, omit `--build` to reuse the image; include it after changing source or dependencies. Dependencies are installed during image build and reused on subsequent starts. Source is copied into the image, so editing local files requires rebuilding. `app/.env` is passed at runtime and excluded from the image; after changing it, run Compose again to recreate the container.
 
+For a local non-Docker run, from the repository root explicitly select the Expo project:
+
+```powershell
+npm --prefix app start -- --clear --tunnel --go
+```
+
+The app uses `app/index.js` to register `app/App.tsx`. Stop the previous server and scan the new QR code after restarting.
+
 The tunnel connects the phone to Expo only. Use a phone-accessible backend URL, such as the Azure URL; `localhost` on the phone refers to the phone. Backend deployment and database migration remain separate. To stop/remove these containers, run `docker compose --profile tabling down`.
 
 Expo credentials persist in a Docker volume. If Expo Go requests matching accounts (including physical iOS), stop the server, run `docker compose run --rm app npx expo login`, then start it again and sign in to the same account in Expo Go.
@@ -138,7 +146,7 @@ npx expo start
 
 ## Dataset attribution
 
-Species ideal ranges are seeded from **MiFloraDB** (<https://github.com/khronimo/MiFloraDB>), file `PlantDB_5335_U0.csv`, 5,335 species, licensed **GPL-3.0**. Missing values are optionally filled by LLM enrichment (`source` column distinguishes `MiFloraDB` vs `llm`).
+Species ideal ranges are seeded from **MiFloraDB** (<https://github.com/khronimo/MiFloraDB>), file `PlantDB_5335_U0.csv` (5,534 species despite the filename), licensed **GPL-3.0**. Missing values are optionally filled by LLM enrichment (`source` column distinguishes `MiFloraDB` vs `llm`).
 
 ## Deployment
 

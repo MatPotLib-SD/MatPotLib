@@ -20,7 +20,7 @@ Everything below is a step a human must perform; nothing here is automated. Plac
    supabase link --project-ref <project-ref>
    supabase db push        # applies db/supabase/migrations/*.sql
    ```
-5. Seed the species table (5,335 rows from MiFloraDB):
+5. Seed the species table (5,534 rows from MiFloraDB):
    ```bash
    cd db
    npm ci
