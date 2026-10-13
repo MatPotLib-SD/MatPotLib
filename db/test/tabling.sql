@@ -13,7 +13,9 @@ CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
   SELECT nullif(current_setting('request.jwt.claim.sub', true),'')::uuid
 $$;
 \ir ../supabase/migrations/20260704000001_init.sql
-\ir ../supabase/migrations/20260924000001_tabling.sql
+\ir ../supabase/migrations/20261006170204_backup_plant_species_and_common_name_work.sql
+\ir ../supabase/migrations/20261013173320_tabling.sql
+\ir ../supabase/migrations/20261013173953_tabling_function_search_paths.sql
 
 DO $$
 DECLARE

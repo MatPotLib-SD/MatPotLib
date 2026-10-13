@@ -2,11 +2,13 @@
 
 The activity uses the real cloud backend and real sensor measurements. Three independent settings must agree: the Expo tabling bundle, the tabling firmware build, and server-controlled device eligibility. Demo login is separate and is disabled by the tabling launcher.
 
+The current cloud deployment and remaining device setup are recorded in [TABLING_DEPLOYMENT.md](TABLING_DEPLOYMENT.md).
+
 ## Choose and prepare the event target
 
 Record the staff account, owned plant/species, device, backend/Supabase target, and phone/tablet platform. Use a dedicated event device/account; keep simulator traffic on a separate test device. Verify the species has usable light and moisture target ranges. No deployment target, credentials, probe calibration, or physical rehearsal results are supplied by this implementation.
 
-1. Apply `db/supabase/migrations/20260924000001_tabling.sql` to the chosen database after the existing initial migration. Review the target before running `supabase db push` from `db/`.
+1. Apply `db/supabase/migrations/20261013173320_tabling.sql` and `20261013173953_tabling_function_search_paths.sql` to the chosen database after the existing initial migration. Review the target and migration history before running `supabase db push` from `db/`. These filenames match the timestamps recorded by Supabase during the first cloud rollout.
 2. Deploy the compatible backend. `.github/workflows/deploy.yml` builds/pushes an image on relevant `main` changes or manual invocation; rollout is manual. The `stem-day` branch alone does not deploy or isolate data.
 3. Claim the event device using the staff account and finish the existing profile/onboarding setup. Assign the intended species to the plant.
 4. Enable only the selected device through a trusted database administrator, substituting its recorded UUID:

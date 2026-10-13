@@ -2,6 +2,8 @@
 
 This record separates repeatable software checks from the physical event rehearsal. Work is on `stem-day`. No live database migration, cloud rollout, firmware flash, credential change, or physical sensor rehearsal is implied by a passing software check.
 
+The subsequent 2026-10-13 cloud rollout and its verification are recorded in [TABLING_DEPLOYMENT.md](TABLING_DEPLOYMENT.md).
+
 ## Review loop record
 
 A loop means an implementation/fix pass followed by skeptical review and the relevant verification, not each individual test invocation. Sol agents implement separate app, backend/database, and firmware/simulator areas. Findings return to the orchestrator before fixes. Cross-area reviews cover code, the full group workflow, and UI/UX.
