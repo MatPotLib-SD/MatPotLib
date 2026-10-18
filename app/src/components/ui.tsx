@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { theme, type HealthStatus } from '../constants/theme';
+import type { Condition } from '../tabling/model';
 
 interface ButtonProps {
   title: string;
@@ -156,8 +157,9 @@ export function StatusChip({ status }: { status: HealthStatus }) {
   );
 }
 
-/** "In range" / "Out of range" pill under gauge values (mockup Plant Data). */
-export function RangePill({ ok }: { ok: boolean | null }) {
+/** Directional condition pill under gauge values. */
+export function RangePill({ status }: { status: Condition }) {
+  const ok = status === 'Unknown' ? null : status === 'In range';
   const bg =
     ok === null ? theme.colors.chip.neutralBg : ok ? theme.colors.chip.okBg : theme.colors.chip.errorBg;
   const fg =
@@ -166,10 +168,9 @@ export function RangePill({ ok }: { ok: boolean | null }) {
       : ok
         ? theme.colors.chip.okText
         : theme.colors.chip.errorText;
-  const label = ok === null ? 'No range' : ok ? 'In range' : 'Out of range';
   return (
     <View style={[styles.chip, { backgroundColor: bg }]}>
-      <Text style={[styles.chipText, { color: fg }]}>{label}</Text>
+      <Text style={[styles.chipText, { color: fg }]}>{status}</Text>
     </View>
   );
 }

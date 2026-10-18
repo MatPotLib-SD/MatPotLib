@@ -1,9 +1,10 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Settings as SettingsIcon, Sprout } from 'lucide-react-native';
+import { Bell, Settings as SettingsIcon, Sprout } from 'lucide-react-native';
 import React from 'react';
 
 import { theme } from '../constants/theme';
 import { HomeStackNavigator } from './TabNavigator';
+import { AlertsScreen } from '../screens/AlertsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { TablingScreen } from '../screens/TablingScreen';
 import type { TablingTabParamList } from '../types';
@@ -22,6 +23,8 @@ export function TablingNavigator() {
         options={{ tabBarIcon: ({ color, size }) => <Sprout color={color} size={size} /> }} />
       <Tab.Screen name="Plants" component={HomeStackNavigator}
         options={{ tabBarIcon: ({ color, size }) => <Sprout color={color} size={size} /> }} />
+      <Tab.Screen name="Alerts" component={AlertsScreen}
+        options={{ tabBarIcon: ({ color, size }) => <Bell color={color} size={size} /> }} />
       <Tab.Screen name="Settings" component={SettingsScreen}
         options={{ tabBarIcon: ({ color, size }) => <SettingsIcon color={color} size={size} /> }} />
     </Tab.Navigator>

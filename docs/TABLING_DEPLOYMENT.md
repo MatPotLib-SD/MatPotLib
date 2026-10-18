@@ -37,11 +37,11 @@ Local filenames match the timestamps recorded by Supabase. The already-applied `
 
 ## Remaining event setup
 
-The existing device is `Demo Pot`, UUID `fbd00dc2-9556-4307-b167-1e1526db6f3a`. Its recorded firmware is `sim`, and it last reported on 2026-10-06. The private firmware configuration references this same UUID. Device eligibility remains disabled pending selection of the event device. No ESP32 was detected on USB.
+The event device is `Demo Pot`, UUID `fbd00dc2-9556-4307-b167-1e1526db6f3a`. The private firmware configuration references this same UUID. On 2026-10-15, ordinary sensor uploads had resumed and server eligibility was enabled for this device. No successful capture-command poll has been recorded yet, so tabling firmware and command connectivity still need verification. The recorded firmware label remains `sim`; that database label alone does not identify the firmware currently running on the board.
 
 The assigned plant is named `Demo Pothos`, but its selected species is `Peppermint`. Light and moisture ranges are usable; the facilitator must select the species appropriate to the actual event plant.
 
-1. Choose the event device and its staff account, then enable that device through trusted administration.
+1. Sign in with the account that owns the event device. Server eligibility is already enabled for `Demo Pot`; refresh the app to load it. Disable eligibility after the event to restore ordinary alert evaluation.
 2. Connect the ESP32 by USB, build and flash `arduino_nano_esp32_tabling`, and verify all four sensors.
 3. Run the app from the repository root:
 

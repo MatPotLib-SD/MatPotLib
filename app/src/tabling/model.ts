@@ -1,11 +1,11 @@
 import type { Plant, Reading, SpeciesRow } from '../types';
 
-export type Condition = 'Too low' | 'In range' | 'Too high' | 'Unknown';
+export type Condition = 'Too Low' | 'In range' | 'Too High' | 'Unknown';
 
 export function condition(value: number | null | undefined, min: number | null | undefined, max: number | null | undefined): Condition {
   if (value == null || !Number.isFinite(value) || min == null || max == null || !Number.isFinite(min) || !Number.isFinite(max) || min > max) return 'Unknown';
-  if (value < min) return 'Too low';
-  if (value > max) return 'Too high';
+  if (value < min) return 'Too Low';
+  if (value > max) return 'Too High';
   return 'In range';
 }
 
@@ -18,7 +18,7 @@ export function challengeConditions(reading: Reading | null, species: SpeciesRow
 
 export function setupIsReady(reading: Reading | null, species: SpeciesRow | null): boolean {
   const c = challengeConditions(reading, species);
-  return (c.moisture === 'Too low' || c.moisture === 'Too high') && (c.lux === 'Too low' || c.lux === 'Too high');
+  return (c.moisture === 'Too Low' || c.moisture === 'Too High') && (c.lux === 'Too Low' || c.lux === 'Too High');
 }
 
 export function recheckSucceeded(reading: Reading | null, species: SpeciesRow | null): boolean {

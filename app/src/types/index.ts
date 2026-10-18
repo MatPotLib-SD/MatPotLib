@@ -134,6 +134,7 @@ export type RootStackParamList = {
 export type TablingTabParamList = {
   Activity: undefined;
   Plants: NavigatorScreenParams<HomeStackParamList>;
+  Alerts: undefined;
   Settings: undefined;
 };
 

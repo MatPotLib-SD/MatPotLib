@@ -2,8 +2,8 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { RangePill } from './ui';
-import { formatMetric, inRange } from '../constants/helpers';
 import { theme } from '../constants/theme';
+import { condition, displayConditionValue } from '../tabling/model';
 
 interface MetricGaugeProps {
   label: string;
@@ -20,7 +20,7 @@ interface MetricGaugeProps {
 
 /**
  * Gauge card for one metric (mockup Plant Data): centered icon + label,
- * large value in the metric's identity color, and an in/out-of-range pill
+ * large value in the metric's identity color, and a directional condition pill
  * derived from the species' ideal range.
  */
 export function MetricGauge({
@@ -33,7 +33,7 @@ export function MetricGauge({
   color,
   digits = 0,
 }: MetricGaugeProps) {
-  const ok = inRange(value, min, max);
+  const status = condition(value, min, max);
 
   return (
     <View style={styles.card}>
@@ -42,10 +42,10 @@ export function MetricGauge({
         <Text style={styles.label}>{label}</Text>
       </View>
       <Text style={[styles.value, { color }]}>
-        {formatMetric(value, digits)}
+        {displayConditionValue(value, min, max, digits)}
         <Text style={[styles.unit, { color }]}> {unit}</Text>
       </Text>
-      <RangePill ok={ok} />
+      <RangePill status={status} />
     </View>
   );
 }
