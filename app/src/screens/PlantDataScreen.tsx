@@ -30,6 +30,9 @@ const WINDOWS = {
 } as const;
 type WindowKey = keyof typeof WINDOWS;
 
+// Fits five-digit lux labels at fontSize.xs.
+const Y_AXIS_LABEL_WIDTH = 40;
+
 const METRICS = [
   { key: 'moisture', label: 'Moisture', unit: '%', digits: 0, color: theme.colors.metric.moisture },
   { key: 'temp_c', label: 'Temperature', unit: '°C', digits: 1, color: theme.colors.metric.temp },
@@ -118,17 +121,25 @@ export function PlantDataScreen({ route }: Props) {
     lux: <Sun size={16} color={theme.colors.metric.lux} />,
   };
 
-  const chartWidth = width - theme.spacing.md * 2 - theme.spacing.lg * 2;
+  // Card inner width (screen padding, card padding, card border). The chart
+  // draws its y-axis labels to the left of `width`, so the plot gets the rest;
+  // passing the full inner width pushed the line past the card's right edge.
+  const chartWidth = width - theme.spacing.md * 2 - theme.spacing.lg * 2 - 2;
+  const plotWidth = chartWidth - Y_AXIS_LABEL_WIDTH - 1;
   const chartEnd = historyEnd;
   const chartStart = chartEnd - WINDOWS[window];
   const points = downsample(history).filter((r) => Number.isFinite(r[metric]) && Number.isFinite(Date.parse(readingTime(r))));
+  // Time-proportional x positions, clamped to the window so no point (e.g. a
+  // reading stamped just after "Now") can land outside the plot.
+  const xs = points.map((r) => {
+    const fraction = (Date.parse(readingTime(r)) - chartStart) / WINDOWS[window];
+    return Math.min(1, Math.max(0, fraction)) * plotWidth;
+  });
   const chartData = points.map((r, index) => ({
     value: r[metric],
-    spacing: index + 1 < points.length
-      ? Math.max(0, (Date.parse(readingTime(points[index + 1])) - Date.parse(readingTime(r))) / WINDOWS[window] * chartWidth)
-      : 0,
+    spacing: index + 1 < points.length ? xs[index + 1] - xs[index] : 0,
   }));
-  const firstSpacing = points.length ? Math.max(0, (Date.parse(readingTime(points[0])) - chartStart) / WINDOWS[window] * chartWidth) : 0;
+  const firstSpacing = xs[0] ?? 0;
   const selectedMetric = METRICS.find((m) => m.key === metric) ?? METRICS[0];
 
   return (
@@ -216,7 +227,8 @@ export function PlantDataScreen({ route }: Props) {
           <>
           <LineChart
             data={chartData}
-            width={chartWidth}
+            width={plotWidth}
+            yAxisLabelWidth={Y_AXIS_LABEL_WIDTH}
             height={200}
             thickness={2}
             color={selectedMetric.color}
@@ -227,6 +239,8 @@ export function PlantDataScreen({ route }: Props) {
             rulesColor={theme.colors.border}
             noOfSections={4}
             initialSpacing={firstSpacing}
+            endSpacing={0}
+            disableScroll
           />
           <View style={styles.timeLabels}><Text style={styles.noDataText}>{new Date(chartStart).toLocaleString()}</Text><Text style={styles.noDataText}>Now</Text></View>
           </>
@@ -319,6 +333,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     textAlign: 'center',
   },
-  timeLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+  timeLabels: { flexDirection: 'row', justifyContent: 'space-between', marginLeft: Y_AXIS_LABEL_WIDTH },
   errorText: { color: theme.colors.status.error, fontSize: theme.fontSize.sm },
 });
