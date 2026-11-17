@@ -53,7 +53,7 @@ Expo credentials persist in a Docker volume. If Expo Go requests matching accoun
 BUILD: 
 *for a demo, just have a memeber who has the frontend running (npx expo start) and demo-er with Expo Go app installed scan the QR code.
 
-One-time setup on your machine (also finally fills that REPLACE_WITH_EAS_PROJECT_ID placeholder):
+One-time setup on your machine (`eas init` also writes the EAS projectId that push tokens need into app.json):
 cd app
 npx eas-cli login          # create a free Expo account if you don't have one
 npx eas init               # writes the real projectId into app.json
@@ -62,7 +62,7 @@ Then publish:
 npx eas update --branch preview --message "friend demo"
 The command output (and your project page on expo.dev) gives a QR/link. Your friend: installs Expo Go from the App Store/Play Store, opens the link → your app loads, talking to the live Azure backend.
 
-Caveats: the EXPO_PUBLIC_* values from app/.env get baked in at publish time — so decide before publishing whether you want DEMO_MODE=true (friend lands straight on the seeded Demo Pothos with charts, zero friction — probably what you want) or false (they'd sign up themselves and see onboarding, but have no device to claim). Push notifications still don't work in Expo Go, and warn them the very first request may take ~25 s if the Azure container is cold.
+Caveats: the EXPO_PUBLIC_* values from app/.env get baked in at publish time — so decide before publishing whether you want DEMO_MODE=true (friend lands straight on the seeded Demo Pothos with charts, zero friction — probably what you want) or false (they'd sign up themselves and see onboarding, but have no device to claim). Push notifications work in Expo Go on iOS only (Android Expo Go dropped them in SDK 53), and warn them the very first request may take ~25 s if the Azure container is cold.
 
 then (in /app):
 

@@ -1,5 +1,4 @@
 import type { Session } from '@supabase/supabase-js';
-import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import React, {
@@ -66,11 +65,8 @@ export async function registerForPushNotifications(): Promise<void> {
     });
   }
 
-  const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)
-    ?.eas?.projectId;
-  const token = await Notifications.getExpoPushTokenAsync(
-    projectId && projectId !== 'REPLACE_WITH_EAS_PROJECT_ID' ? { projectId } : undefined,
-  );
+  // Reads the EAS projectId that `eas init` writes into app.json.
+  const token = await Notifications.getExpoPushTokenAsync();
   await registerPushToken(token.data, Platform.OS);
 }
 

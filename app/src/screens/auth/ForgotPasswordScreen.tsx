@@ -12,8 +12,8 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
 /**
  * Password reset via Supabase Auth email (HANDOFF Section 2 — no custom
- * email code). Supabase sends the recovery link; the user completes the
- * reset in the browser.
+ * email code). Supabase emails a one-time code, which the user enters on
+ * ResetPasswordScreen; links would redirect to a URL the phone cannot open.
  */
 export function ForgotPasswordScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
@@ -31,9 +31,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
       Alert.alert('Reset failed', error.message);
       return;
     }
-    Alert.alert('Email sent', 'Check your inbox for a password reset link.', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+    navigation.navigate('ResetPassword', { email: email.trim() });
   }
 
   return (
@@ -42,7 +40,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
         <Sprout size={48} color={theme.colors.primary} />
         <Text style={styles.title}>Reset Password</Text>
         <Text style={styles.subtitle}>
-          Enter your email and we&apos;ll send you a link to reset your password.
+          Enter your email and we&apos;ll send you a code to reset your password.
         </Text>
       </View>
       <Field
@@ -54,7 +52,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
         keyboardType="email-address"
         placeholder="you@example.com"
       />
-      <Button title="Send Reset Link" onPress={sendReset} loading={busy} />
+      <Button title="Send Reset Code" onPress={sendReset} loading={busy} />
     </ScrollView>
   );
 }

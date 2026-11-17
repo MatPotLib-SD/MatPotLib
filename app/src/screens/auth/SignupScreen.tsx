@@ -50,9 +50,7 @@ export function SignupScreen({ navigation }: Props) {
     }
     if (!data.session) {
       // Email confirmation is enabled on the Supabase project.
-      Alert.alert('Check your email', 'Confirm your address, then sign in.', [
-        { text: 'OK', onPress: () => navigation.navigate('Login') },
-      ]);
+      navigation.navigate('VerifyEmail', { email: email.trim() });
     }
     // With auto-confirm the session is set and useAuth routes to onboarding.
   }
