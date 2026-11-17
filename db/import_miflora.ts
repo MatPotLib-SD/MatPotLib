@@ -220,6 +220,24 @@ const COLUMN_BOUNDS: Record<IdealColumn, [number, number]> = {
   ideal_humidity_max: [0, 100],
 };
 
+/**
+ * Strict structured output for the requested columns. OpenAI rejects plain
+ * JSON mode (json_object) together with web search with a 400.
+ */
+function missingColumnsFormat(missing: IdealColumn[]) {
+  return {
+    type: 'json_schema',
+    name: 'ideal_ranges',
+    strict: true,
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: missing,
+      properties: Object.fromEntries(missing.map((c) => [c, { type: ['number', 'null'] }])),
+    },
+  };
+}
+
 async function enrichRow(
   apiKey: string,
   row: SpeciesRow,
@@ -240,7 +258,7 @@ async function enrichRow(
       model: OPENAI_MODEL,
       tools: [{ type: 'web_search' }],
       tool_choice: 'required',
-      text: { format: { type: 'json_object' } },
+      text: { format: missingColumnsFormat(missing) },
       input: [
         {
           role: 'system',

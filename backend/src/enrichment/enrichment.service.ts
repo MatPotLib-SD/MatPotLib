@@ -15,14 +15,66 @@ interface OpenAIResponse {
 const SYSTEM_PROMPT =
   'You are a horticulture data assistant. Search the web to verify the plant ' +
   'and its care ranges. Given a plant name, respond with ' +
-  'a single JSON object with exactly these keys: common_name (string), ' +
+  'a single JSON object with exactly these keys: input_is_plant_name ' +
+  '(boolean: true only if the input text itself is the common or scientific ' +
+  'name of a plant, allowing typos; false for objects, furniture, places, ' +
+  'or anything else), common_name (string), ' +
   'scientific_name (string), care_level (one of "easy", "moderate", ' +
   '"hard"), ideal_moisture_min, ideal_moisture_max (soil moisture percent, ' +
   '0-100), ideal_temp_min, ideal_temp_max (degrees Celsius), ' +
   'ideal_humidity_min, ideal_humidity_max (relative humidity percent, ' +
   '0-100), ideal_lux_min, ideal_lux_max (light level in lux). All ideal_* ' +
-  'values must be numbers. Use null for any value you do not know. If the ' +
-  'input is not a real plant, return {"common_name": null}.';
+  'values must be numbers. Use null for any value you do not know. The ' +
+  'input must itself name a plant (common or scientific name; minor typos ' +
+  'are fine). If it names anything else, set every value to null. Never ' +
+  'substitute a plant that is merely associated with the input.';
+
+const nullable = (type: 'string' | 'number') => ({ type: [type, 'null'] });
+
+// Strict structured output. OpenAI rejects plain JSON mode (json_object)
+// together with web search, which made every enrichment request fail with 400.
+const SPECIES_FORMAT = {
+  type: 'json_schema',
+  name: 'plant_species',
+  strict: true,
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'input_is_plant_name',
+      'common_name',
+      'scientific_name',
+      'care_level',
+      'ideal_moisture_min',
+      'ideal_moisture_max',
+      'ideal_temp_min',
+      'ideal_temp_max',
+      'ideal_humidity_min',
+      'ideal_humidity_max',
+      'ideal_lux_min',
+      'ideal_lux_max',
+    ],
+    properties: {
+      // Listed first so the model classifies the input before filling data;
+      // instructions alone did not stop it mapping "office chair" to a plant.
+      input_is_plant_name: { type: 'boolean' },
+      common_name: nullable('string'),
+      scientific_name: nullable('string'),
+      care_level: {
+        type: ['string', 'null'],
+        enum: ['easy', 'moderate', 'hard', null],
+      },
+      ideal_moisture_min: nullable('number'),
+      ideal_moisture_max: nullable('number'),
+      ideal_temp_min: nullable('number'),
+      ideal_temp_max: nullable('number'),
+      ideal_humidity_min: nullable('number'),
+      ideal_humidity_max: nullable('number'),
+      ideal_lux_min: nullable('number'),
+      ideal_lux_max: nullable('number'),
+    },
+  },
+};
 
 /**
  * Runtime LLM fallback (handoff §6): when a species search finds nothing,
@@ -58,7 +110,7 @@ export class EnrichmentService {
           model: 'gpt-4o-mini',
           tools: [{ type: 'web_search' }],
           tool_choice: 'required',
-          text: { format: { type: 'json_object' } },
+          text: { format: SPECIES_FORMAT },
           input: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: `Plant: ${query}` },
@@ -95,7 +147,7 @@ export class EnrichmentService {
         typeof v === 'number' && Number.isFinite(v) ? v : null;
 
       const commonName = str(parsed.common_name);
-      if (!commonName) {
+      if (parsed.input_is_plant_name !== true || !commonName) {
         this.logger.log(`Enrichment found no data for "${query}"`);
         return null;
       }
