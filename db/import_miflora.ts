@@ -328,7 +328,7 @@ async function enrichmentPass(supabase: SupabaseClient): Promise<void> {
 
   console.log(`Rows missing at least one ideal_* value: ${incomplete.length}`);
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY ?? '';
   if (!apiKey) {
     console.log('OPENAI_API_KEY not set — skipping enrichment pass.');
     console.log(`(${incomplete.length} incomplete rows left as-is; re-run with a key to fill.)`);

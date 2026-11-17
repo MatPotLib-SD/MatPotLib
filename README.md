@@ -1,3 +1,21 @@
+## Local app modes (Expo Go)
+
+Run these commands from the repository root. For a non-Docker run, install Node.js 24, run `npm --prefix app ci` once, and configure `app/.env` with the public backend/Supabase settings.
+
+| Mode | What it does | Command from repository root |
+| --- | --- | --- |
+| Normal | Regular sign-in, plant monitoring, reports, and alerts. | `npm --prefix app start -- --tunnel --go` |
+| Demo | Signs into the configured seeded demo account and skips onboarding. | `npm --prefix app run demo -- --tunnel --go` |
+| Tabling / STEM-day (legacy event mode) | Staff sign-in, on-demand sensor captures, Before/Now comparison, and group reset. Requires event firmware and server-enabled device. | `npm --prefix app run tabling -- --tunnel --go` |
+
+Inside `app/`, the equivalent commands are `npm start -- --tunnel --go`, `npm run demo -- --tunnel --go`, and `npm run tabling -- --tunnel --go`.
+
+Scan the terminal QR with Expo Go and keep the server running. Stop with Ctrl+C before switching modes, then scan the new QR. The launchers clear Metro's cache automatically. Omit `--tunnel` for LAN access on the same reachable network; keep it for isolated/campus Wi-Fi or remote access. On physical iPhones, Expo CLI and Expo Go must use the same Expo account.
+
+All three modes use the backend/database configured in `app/.env`; demo and tabling are not separate data environments. For normal local runs, keep `EXPO_PUBLIC_DEMO_MODE=false`: the normal launcher forces tabling off but leaves the demo setting unchanged. Use the commands above instead of bare `npx expo start` at the repository root. Docker alternatives are documented below.
+
+When retiring an event device, set its server-side `tabling_enabled` to `false` to restore normal alert evaluation. Switching to the normal app alone does not change this setting. Keep the applied migrations: normal sensor ingestion and reading queries also use their database functions.
+
 ## Tabling activity
 
 The capture → physical change → capture activity is configured separately from demo login. Follow [the tabling runbook](docs/TABLING_RUNBOOK.md) for database/backend rollout, event-device enablement, firmware flashing, app builds, group reset, and the required hardware rehearsal. Local app command: `cd app` then `npm run tabling`; Android build: `eas build --profile tabling --platform android`. These commands require the matching backend and board setup.
