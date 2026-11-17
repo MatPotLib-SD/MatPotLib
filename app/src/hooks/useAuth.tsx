@@ -60,6 +60,8 @@ export async function registerForPushNotifications(): Promise<void> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Default',
+      // expo-notifications 58 exports this, but its build output defeats import/namespace parsing.
+      // eslint-disable-next-line import/namespace
       importance: Notifications.AndroidImportance.DEFAULT,
     });
   }

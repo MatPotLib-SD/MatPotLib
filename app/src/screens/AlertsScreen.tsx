@@ -104,7 +104,7 @@ export function AlertsScreen() {
               onRetry={onRefresh}
               retrying={refreshing}
             />
-          ) : alerts === null ? null : (
+          ) : alerts === null ? undefined : (
             <View style={styles.empty}>
               <BellOff size={56} color={theme.colors.textDisabled} strokeWidth={1.5} />
               <Text style={styles.emptyTitle}>All clear</Text>

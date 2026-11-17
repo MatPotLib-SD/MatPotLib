@@ -105,7 +105,7 @@ export function HomeScreen({ navigation }: Props) {
               onRetry={onRefresh}
               retrying={refreshing}
             />
-          ) : plants === null ? null : (
+          ) : plants === null ? undefined : (
             <View style={styles.empty}>
               <Sprout size={64} color={theme.colors.primaryLight} strokeWidth={1.5} />
               <Text style={styles.emptyTitle}>No plants yet</Text>
