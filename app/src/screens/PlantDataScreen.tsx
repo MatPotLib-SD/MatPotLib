@@ -143,7 +143,11 @@ export function PlantDataScreen({ route }: Props) {
   const selectedMetric = METRICS.find((m) => m.key === metric) ?? METRICS[0];
 
   return (
+    // On iOS 26, react-native-screens lays screens out under the opaque native
+    // header and React Navigation 6 does not inset them; "automatic" lets UIKit
+    // inset by the real header height (zero on older iOS, ignored on Android).
     <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
       style={styles.flex}
       contentContainerStyle={styles.container}
       refreshControl={

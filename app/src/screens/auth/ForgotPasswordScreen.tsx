@@ -35,7 +35,11 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.logoWrap}>
         <Sprout size={48} color={theme.colors.primary} />
         <Text style={styles.title}>Reset Password</Text>

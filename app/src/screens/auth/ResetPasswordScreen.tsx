@@ -82,7 +82,11 @@ export function ResetPasswordScreen({ route }: Props) {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.logoWrap}>
           <KeyRound size={48} color={theme.colors.primary} />
           <Text style={styles.title}>Set a new password</Text>

@@ -60,7 +60,11 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.logoWrap}>
           <MailCheck size={48} color={theme.colors.primary} />
           <Text style={styles.title}>Check your email</Text>

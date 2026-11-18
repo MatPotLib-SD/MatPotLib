@@ -156,7 +156,11 @@ export function AddEditPlantScreen({ navigation, route }: Props) {
 
   if (isEdit && prefillError) {
     return (
-      <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        style={styles.flex}
+        contentContainerStyle={styles.container}
+      >
         <ErrorState
           title="Can't load this plant"
           message={`${prefillError} Editing now would clear this plant's species and device.`}
@@ -167,7 +171,9 @@ export function AddEditPlantScreen({ navigation, route }: Props) {
   }
 
   return (
+    // Insets below the native header on iOS 26 (see PlantDataScreen).
     <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
       style={styles.flex}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
