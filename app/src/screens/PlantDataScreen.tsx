@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Droplets, Sun, Thermometer, Wind } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
@@ -57,9 +57,24 @@ function downsample(readings: Reading[], maxPoints = 120): Reading[] {
  * "«Metric» Trend («window»)" title, then window pills. Data logic
  * unchanged: /plants/:id, latest reading, /sensors/:deviceId/history.
  */
-export function PlantDataScreen({ route }: Props) {
+export function PlantDataScreen({ navigation, route }: Props) {
   const { plantId, deviceId } = route.params;
   const { width } = useWindowDimensions();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          onPress={() => navigation.navigate('AddEditPlant', { plantId })}
+          accessibilityRole="button"
+          accessibilityLabel="Edit plant"
+          hitSlop={8}
+        >
+          <Text style={styles.headerAction}>Edit</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation, plantId]);
 
   const [plant, setPlant] = useState<Plant | null>(null);
   const [latest, setLatest] = useState<Reading | null>(null);
@@ -338,5 +353,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   timeLabels: { flexDirection: 'row', justifyContent: 'space-between', marginLeft: Y_AXIS_LABEL_WIDTH },
+  headerAction: { color: theme.colors.primary, fontSize: theme.fontSize.md, fontWeight: '600' },
   errorText: { color: theme.colors.status.error, fontSize: theme.fontSize.sm },
 });

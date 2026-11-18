@@ -40,6 +40,7 @@ export function AddEditPlantScreen({ navigation, route }: Props) {
   const [selectedSpecies, setSelectedSpecies] = useState<SpeciesRow | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [originalDeviceId, setOriginalDeviceId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [prefillError, setPrefillError] = useState<string | null>(null);
   const [devicesError, setDevicesError] = useState(false);
@@ -60,6 +61,7 @@ export function AddEditPlantScreen({ navigation, route }: Props) {
         if (cancelled) return;
         setNickname(plant.nickname ?? '');
         setSelectedDeviceId(plant.device_id);
+        setOriginalDeviceId(plant.device_id);
         if (plant.species) setSelectedSpecies(plant.species);
       })
       .catch((err: unknown) => {
@@ -125,15 +127,28 @@ export function AddEditPlantScreen({ navigation, route }: Props) {
         plant_species_id: selectedSpecies?.id ?? null,
         device_id: selectedDeviceId,
       };
-      if (isEdit && plantId) await updatePlant(plantId, input);
-      else await createPlant(input);
+      if (isEdit && plantId) {
+        await updatePlant(plantId, input);
+        // The plant's data screen below is keyed to the old device, so a
+        // device change opens a fresh one (or the list when unassigned).
+        const fromPlantData = navigation.getState().routes.some((r) => r.name === 'PlantData');
+        if (fromPlantData && selectedDeviceId !== originalDeviceId) {
+          navigation.popToTop();
+          if (selectedDeviceId) {
+            navigation.navigate('PlantData', { plantId, deviceId: selectedDeviceId });
+          }
+          return;
+        }
+      } else {
+        await createPlant(input);
+      }
       navigation.goBack();
     } catch (err) {
       Alert.alert('Save failed', err instanceof Error ? err.message : 'Please try again.');
     } finally {
       setSaving(false);
     }
-  }, [nickname, selectedSpecies, selectedDeviceId, isEdit, plantId, navigation]);
+  }, [nickname, selectedSpecies, selectedDeviceId, originalDeviceId, isEdit, plantId, navigation]);
 
   function removePlant() {
     if (!plantId) return;
@@ -145,7 +160,8 @@ export function AddEditPlantScreen({ navigation, route }: Props) {
         onPress: async () => {
           try {
             await deletePlant(plantId);
-            navigation.goBack();
+            // Back to the list: the plant's data screen may be underneath.
+            navigation.popToTop();
           } catch (err) {
             Alert.alert('Failed', err instanceof Error ? err.message : 'Please try again.');
           }
